@@ -1,0 +1,1870 @@
+#! /bin/bash
+#
+# dback backup script.
+# Execute this shell script without arguments for help.
+#
+###############################################################################
+# $Id: dback,v 2.3 2011/02/24 08:46:47 David Exp David $
+#
+# $Log: dback,v $
+# Revision 2.3  2011/02/24 08:46:47  David
+# Update section of user guide concerning rsync 3.0.7.
+#
+# Revision 2.2  2011/02/24 05:36:05  David
+# Logic for initializing a dback volume was bad.
+#
+# Revision 2.1  2011/02/16 04:08:29  David
+# Advance to version 2.x.
+#
+#
+# Revision 1.1  2011/01/20 00:29:52  David
+# Initial revision
+###############################################################################
+
+# Tuning
+# ------
+
+# This is the name of the directory where backup data is stored, on 
+# each backup volume that you will create.
+SNAPSHOT_DIR="snapshots"
+
+# There are two alternative script functions for calling rsync(1). You
+# can decide which one to use, by un-commenting one of the definitions
+# of RSYNC_SUB, right here.
+#
+# The first alternative function is called apple_rsync_sub(), and it 
+# is compatible with the rsync(1) that Apple provides with OSX. This 
+# "Apple OSX" is a modified version of rsync 2.6.9. This function 
+# requires a valid path to a compatible rsync(1) program. This path is
+# named RSYNC2, which you can modify immediately below.
+#
+# The second alternative function is called bombich_rsync_sub(), and 
+# it is compatible with the modified rsync 3.0.7. that Bombich talks 
+# up at http://www.bombich.com/rsync . This function requires a valid
+# path to a compatible rsync(1) program. This path is named RSYNC3, 
+# which you can modify immediately below.
+#
+# RSYNC_SUB=apple_rsync_sub
+RSYNC_SUB=bombich_rsync_sub
+
+# This is a rsync(1) program whose command line arguments are compatible
+# with version 2.6.9. OSX ships with a suitable rsync. The value given
+# here is the location that OSX uses.
+#
+# You only need to care about this symbol if you have set
+#     RSYNC_SUB=apple_rsync_sub
+# immediately above.
+#
+RSYNC2="/usr/bin/rsync"
+
+# This is a rsync(1) program whose command line arguments are compatible 
+# with version 3.0.x.  See http://www.bombich.com/rsync for instructions 
+# on building a suitable rsync. Or, you can just use the rsync program
+# that is embedded in Carbon Copy Cloner (CCC). You can download CCC 
+# from http://www.bombich.com. Then set the following symbol to the
+# location you installed to.
+#
+# You only need to care about this symbol if you have set
+#     RSYNC_SUB=bombich_rsync_sub
+# immediately above.
+#
+# RSYNC3="/usr/local/bin/rsync"
+RSYNC3="/usr/local/bin/rsync_bombich"
+
+# This is your personal list of files to exclude, in a format recognized
+# by rsync(1). The first item is a really good idea. Subsequent items
+# are merely examples.
+rsync_excludes="$(/usr/bin/mktemp -t dback)"
+cat <<EOF >"$rsync_excludes" || exit 1
+- /${SNAPSHOT_DIR}
+- /dback_data.tc
+- /Users/David/NoBack/*
+- /Users/David/Documents/Parallels/Windows 8 Consumer Preview (English).pvm/*
+- /Users/David/Documents/Parallels/*/*.mem
+EOF
+
+# End of Tuning Section
+# ---------------------
+
+# Other Global Variables
+# ----------------------
+
+logfile=""
+lockfile=""
+trapfile="$(/usr/bin/mktemp -t .dback.inprogress)"
+
+# These exclusions are needed to reliably create a bootable volume.
+cat <<EOF >> "$rsync_excludes" || exit 1
+- /.HFS+ Private Directory Data*
+- /.Spotlight-V100/*
+- /.Trashes/*
+- /.VolumeIcon.icns
+- /.com.apple.NetBootX*
+- /.com.apple.timemachine.donotpresent
+- /.fseventsd/*
+- /.hotfiles.btree
+- /.journal
+- /.journal_info_block
+- /.metadata_never_index
+- /.vol/*
+- /Backups.backupdb
+- /Desktop DB
+- /Desktop DF
+- /Network/*
+- /Previous Systems/*
+- /System/Library/Extensions/Caches/*
+- /Users/Guest/*
+- /Users/Shared/SC Info/*
+- /Volumes/*
+- /automount
+- /cores/*
+- /dev/*
+- /home/*
+- /net/*
+- /private/Network/*
+- /private/tftpboot/*
+- /private/tmp/*
+- /private/var/automount/*
+- /private/var/db/Spotlight/*
+- /private/var/db/Spotlight-V100/*
+- /private/var/db/dhcpclient/*
+- /private/var/db/dyld/dyld_*
+- /private/var/db/efw_cache/*
+- /private/var/db/fseventsd/*
+- /private/var/folders/*
+- /private/var/spool/cups/*
+- /private/var/spool/fax/*
+- /private/var/spool/uucp/*
+- /private/var/spool/postfix/private/*
+- /private/var/spool/postfix/public/*
+- /private/var/spool/uucp/*
+- /private/var/tmp/*
+- /private/var/vm/*
+- /tmp/*
+EOF
+
+###############################################################################
+function main 
+# action [...]
+{
+    local action
+
+    if [ $# -eq 0 ]
+    then
+        action="help"
+    else
+        action="$1"
+	shift
+    fi
+    case "$action" in
+    backup)
+    	dback_backup "$@"
+	;;
+    restore)
+    	dback_restore "$@"
+	;;
+    list)
+        dback_list "$@"
+	;;
+    trash)
+        dback_trash "$@"
+	;;
+    empty)
+        dback_empty "$@"
+	;;
+    copy)
+    	dback_copy "$@"
+	;;
+    help) :
+    	dback_usage
+	;;
+    version) :
+    	dback_version "$@"
+	;;
+    userguide) :
+    	dback_userguide "$@"
+	;;
+    *) :
+    	dback_usage
+	exit 1
+	;;
+    esac
+
+} 
+# end function main 
+
+###############################################################################
+function dback_usage 
+# (<no arguments>)
+{
+    cat <<EOF
+Usage: dback [help|version|userguide|backup|restore|list|trash|empty|copy]
+
+Type 
+    dback [command] help
+for help with individual commands.
+
+Backup and restore methods for Apple OSX, based on rsync.
+
+EOF
+}
+# End function dback_usage 
+
+###############################################################################
+function dback_version 
+# (<no arguments>)
+{
+    # Take care of help or improper usage
+    case $# in
+    0)
+        ;;
+    1)
+        dback_version_usage
+	if [ "$1" == "help" ]
+	then
+	    exit 0
+	else
+	    exit 1
+	fi
+        ;;
+    *)
+    	dback_version_usage
+	exit 1
+        ;;
+    esac
+
+    echo '$Id: dback,v 2.3 2011/02/24 08:46:47 David Exp David $,'
+    echo 'configured to use this verion of rsync:'
+    if [ "$RSYNC_SUB" == "apple_rsync_sub" ]
+    then
+        "$RSYNC2" --version
+    elif [ "$RSYNC_SUB" == "bombich_rsync_sub" ]
+    then
+        "$RSYNC3" --version
+    else
+        echo "ERROR! UNDEFINED!!!"
+	exit 1
+    fi
+}
+# End function dback_version 
+
+###############################################################################
+function dback_version_usage
+# ([help]) 
+{
+    cat <<EOF
+Usage: dback version [help]
+
+Discloses version information for dback and rsync.
+
+EOF
+}
+# End function dback_version_usage
+
+###############################################################################
+function dback_backup
+# (help) or (source destination)
+{
+    local source
+    local destination
+    local vol
+    local dropping
+    local machname
+    local arena
+    local datestring
+    local middle
+    local new
+    local latestlink
+    local inprogresslink
+
+    # Take care of help or improper usage
+    case $# in
+    0)
+    	dback_backup_usage
+	exit 1
+        ;;
+    1)
+        dback_backup_usage
+	if [ "$1" == "help" ]
+	then
+	    exit 0
+	else
+	    exit 1
+	fi
+        ;;
+    2)
+	source="$1"
+	destination="$2"
+        ;;
+    *)
+    	dback_backup_usage
+	exit 1
+        ;;
+    esac
+
+    # Need privilege to really do work
+    su_check
+
+    # Sanity checks
+    for vol in "${source}" "${destination}"
+    do
+	if [ ! -e "/Volumes/${vol}" ]
+	then
+	    echo "ERROR: Volume \"${vol}\" does not exist"
+	    exit 1
+	fi
+	echo "${vol}" | grep -q /
+	if [ $? -eq 0 ]
+	then
+	    echo "ERROR: argument \"${vol}\" has a / in it."
+	    exit 1
+	fi
+    done
+
+    # Locations and files to be used
+
+    machname="$(hostname -s)"
+    dropping="/Volumes/${destination}/${SNAPSHOT_DIR}/.dback.ident"
+    arena="/Volumes/${destination}/${SNAPSHOT_DIR}/${machname}/${source}"
+
+    latestlink="${arena}/Latest"
+    inprogresslink="${arena}/inProgress"
+
+    # Three types of backup are possible
+    # ----------------------------------
+
+    if [ -e "${inprogresslink}" ]
+    then
+    	# Recovery backup
+
+	if [ ! -e "$dropping" ]
+	then
+	    echo "ERROR: Identifying file \"${dropping}\" not found."
+	    exit 1
+	fi
+
+	middle="${arena}/$(readlink "${inprogresslink}")"
+	if [ $? -ne 0 ]
+	then
+	    inprogresslink_fail "${arena}" "${inprogresslink}"
+	fi
+	new="$(echo "${middle}" | sed 's/.inProgress//g')"
+	datestring="$(basename "${new}")"
+	logfile="${new}.log"
+	touch "${logfile}" || exit 1
+	chmod a+r "${logfile}" || exit 1
+
+	lock_on "$arena" $$
+
+        echo_heading "Resuming backup to ${middle}" 
+	linkdest="${arena}/$(readlink "${latestlink}")"
+	if [ $? -ne 0 ]
+	then
+	    lock_off
+	    latestlink_fail "${arena}" "${latestlink}" 
+	fi
+	dback_rsync_backup \
+	    "/Volumes/${source}" "${middle}" \
+	    --stats \
+	    --link-dest="${linkdest}"
+
+	if [ -e "${trapfile}" ]
+	then
+	    lock_off
+	    echo_date "Backup not complete"
+	    date_exit 99
+	fi
+
+	mv "${middle}" "${new}" || date_exit 1
+	rm "${inprogresslink}" || date_exit 1
+
+	cd "$arena" || date_exit 1
+	rm -f Latest || date_exit 1
+	ln -s "${datestring}" Latest || date_exit 1
+
+	lock_off
+    elif [ -e "${latestlink}" ]
+    then
+    	# Normal, incremental backup
+
+	if [ ! -e "$dropping" ]
+	then
+	    echo "ERROR: Identifying file \"${dropping}\" not found."
+	    exit 1
+	fi
+
+	datestring="$(date '+%G-%m-%d-%H%M%S')"
+	middle="${arena}/${datestring}.inProgress"
+	new="${arena}/${datestring}"
+	logfile="${new}.log"
+	touch "${logfile}" || exit 1
+	chmod a+r "${logfile}" || exit 1
+
+	lock_on "$arena" $$
+
+	echo_heading "Begin delta rsync to ${middle}" 
+	mkdir "${middle}" || date_exit 1
+	cd "${latestlink}" || latestlink_fail "${arena}" "${latestlink}"
+	linkdest="${arena}/$(readlink "${latestlink}")"
+	if [ $? -ne 0 ]
+	then
+	    lock_off
+	    latestlink_fail "${arena}" "${latestlink}" 
+	fi
+	ln -s "${datestring}.inProgress" "${inprogresslink}" || exit 1
+	dback_rsync_backup \
+	    "/Volumes/${source}" "$middle" \
+	    --stats \
+	    --link-dest="${linkdest}"
+
+	if [ -e "${trapfile}" ]
+	then
+	    lock_off
+	    echo_date "Backup not complete"
+	    date_exit 99
+	fi
+
+	mv "$middle" "${new}" || date_exit 1
+	rm "${latestlink}" || date_exit 1
+
+	cd "$arena" || date_exit 1
+	rm -f Latest || date_exit 1
+	ln -s "${datestring}" Latest || date_exit 1
+	rm "${inprogresslink}" || date_exit 1
+
+	lock_off
+    else
+    	# Initial backup, no previous deltas.
+
+        if [ ! -e "/Volumes/${destination}/${SNAPSHOT_DIR}" ]
+	then
+	    echo_heading "First use of volume \"${destination}\" for dback"
+	    mkdir -p "/Volumes/${destination}/${SNAPSHOT_DIR}" || exit 1
+	    echo '$Id: dback,v 2.3 2011/02/24 08:46:47 David Exp David $,' \
+	        > "$dropping" || exit 1
+	    echo "This dback backup area initialized on $(date)" \
+	        >> "$dropping" || exit 1
+	    chmod a+r "$dropping" || exit 1
+	fi
+	if [ ! -e "${arena}" ]
+	then
+	    mkdir -p "${arena}" || exit 1
+	fi
+	if [ ! -e "$dropping" ]
+	then
+	    echo "ERROR: Identifying file \"${dropping}\" not found."
+	    exit 1
+	fi
+
+	datestring="$(date '+%G-%m-%d-%H%M%S')"
+	middle="${arena}/${datestring}.inProgress"
+	new="${arena}/${datestring}"
+	mkdir -p "${middle}" || date_exit 1
+	logfile="${new}.log"
+	touch "${logfile}" || exit 1
+	chmod a+r "${logfile}" || exit 1
+	ln -s "${datestring}.inProgress" "${inprogresslink}" || exit 1
+
+	lock_on "$arena" $$
+
+	echo_heading "Preparation"
+	echo_log " "
+	echo_log diskutil enableOwnership "${destination}"
+	diskutil enableOwnership "${destination}" 2>&1 | tee -a "${logfile}"
+	echo_log diskutil enableJournal "${destination}"
+	diskutil enableJournal "${destination}" 2>&1 | tee -a "${logfile}"
+
+	echo_heading "Begin initial rsync to ${middle}" 
+	dback_rsync_backup \
+	    "/Volumes/${source}" "${middle}" \
+	    --stats
+
+	if [ -e "${trapfile}" ]
+	then
+	    lock_off
+	    echo_date "Backup not complete"
+	    date_exit 99
+	fi
+
+	mv "${middle}" "${new}" || date_exit 1
+
+	cd "$arena" || date_exit 1
+	ln -s "${datestring}" Latest
+	rm "${inprogresslink}" || date_exit 1
+
+	lock_off
+    fi
+
+    echo_heading "Post processing"
+
+    # It would be great if rsync could exclude ordinary files, but preserve
+    # directories.
+    echo_log " "
+    echo_log find "${new}/var/log" "${new}/var/run" \
+         "${new}/Library/Caches" "${new}/Library/Logs" \
+	 "${new}/System/Library/Caches" \
+        \( -not -type d \) -delete
+    find "${new}/var/log" "${new}/var/run" \
+         "${new}/Library/Caches" "${new}/Library/Logs" \
+	 "${new}/System/Library/Caches" \
+        \( -not -type d \) -delete 2>&1 | tee -a "${logfile}"
+
+    echo_heading "End dback"
+    date_exit 0
+}
+# End function dback_backup
+
+###############################################################################
+function dback_backup_usage
+# (<no arguments>)
+{
+    cat <<EOF
+Usage: dback backup sourcevol destvol
+    sourcevol is the volume to backup. It is typically "Macintosh HD".
+    destvol is the backup media volume. "/Volumes/destvol" must exist.
+No slashes please!
+
+Performs a full backup of an OSX disk volume (partition).
+
+Example:
+    sudo dback backup 'Macintosh HD' 'My External USB Drive'
+
+EOF
+}
+# End function dback_backup_usage
+
+###############################################################################
+function dback_restore
+# (help) or (source destination)
+{
+    local source
+    local destination
+    local folder
+    local systemfile
+
+    # Take care of help or improper usage
+    case $# in
+    0)
+    	dback_restore_usage
+	exit 1
+        ;;
+    1)
+        dback_restore_usage
+	if [ "$1" == "help" ]
+	then
+	    exit 0
+	else
+	    exit 1
+	fi
+        ;;
+    2)
+        ;;
+    *)
+    	dback_restore_usage
+	exit 1
+        ;;
+    esac
+
+    source="$1"
+    destination="$2"
+
+    # Need privilege to really do work
+    su_check
+
+    # Sanity checks
+    for folder in "${source}" "/Volumes/${destination}"
+    do
+	if [ ! -e "${folder}" ]
+	then
+	    echo "ERROR: \"${folder}\" does not exist"
+	    exit 1
+	fi
+    done
+    echo "$destination" | grep -q /
+    if [ $? -eq 0 ]
+    then
+	echo "ERROR: argument \"${destination}\" has a / in it."
+	exit 1
+    fi
+
+    logfile="$(/usr/bin/mktemp -t dback.log)"
+    touch "$logfile" || exit 1
+    chmod a+r "${logfile}" || exit 1
+
+    echo_heading "Preparation"
+    echo_log " "
+    echo_log diskutil enableOwnership "${destination}"
+    diskutil enableOwnership "${destination}" 2>&1 | tee -a "${logfile}"
+    echo_log diskutil enableJournal "${destination}"
+    diskutil enableJournal "${destination}" 2>&1 | tee -a "${logfile}"
+
+    echo_heading "Begin restore to /Volumes/${destination}" 
+    dback_rsync_restore \
+	"${source}" "/Volumes/${destination}" \
+        --stats 
+
+    if [ -e "${trapfile}" ]
+    then
+	echo_date "Restore not complete"
+	date_exit 99
+    fi
+
+    echo_heading "Final Steps"
+    echo_log " "
+    systemfile="/Volumes/${destination}/System/Library/CoreServices"
+    if [ -e "${systemfile}/boot.efi" ]
+    then
+        echo_log bless --folder "${systemfile}" --bootefi
+        bless --folder "${systemfile}" --bootefi 2>&1 | tee -a "${logfile}"
+    else
+    	echo_log "INFO: unable to \"bless\" restored volume:"
+	echo_log "      \"${systemfile}/boot.efi\" does not exist."
+    fi
+
+    mv "${logfile}" "/Volumes/${destination}/dback_restore.log" || exit 1
+    logfile="/Volumes/${destination}/dback_restore.log"
+    chmod a+r "${logfile}" || exit 1
+
+    echo_heading "End dback"
+    date_exit 0
+}
+# End function dback_restore
+
+###############################################################################
+function dback_restore_usage
+# (<no arguments>)
+{
+    cat <<EOF
+Usage: dback restore sourcedir volname
+    sourcedir is the root of the backup media. It will have the form
+        /Volumes/<volname>/${SNAPSHOT_DIR}/<machine>/<date>
+	No trailing slashes please!
+    volname is the volume to restore to. "/Volumes/volname" must exist.
+        No slashes please!
+
+Performs a full restore of a bootable OSX disk volume (partition).
+Includes making the destination volume bootable.
+
+Note that the first argument is a complete path, but the second
+argument is merely the name of a mounted volume.
+
+The list command enumerates mounted "sourcedirs" available to restore.
+
+Example:
+    sudo dback restore \\
+        '/Volumes/My External USB Drive/snapshots/My Powerbook/Macintosh HD/2011-01-17-233228' \\
+	'My Scratch Disk'
+
+EOF
+}
+# End function dback_restore_usage
+
+###############################################################################
+function dback_list
+# (help) or (source destination)
+{
+    local machname
+    local overdir
+    local vol
+    local subvol
+    local dropping
+    local file
+    local count
+
+    # Take care of help or improper usage
+    case $# in
+    0)
+        ;;
+    1)
+        dback_list_usage
+	if [ "$1" == "help" ]
+	then
+	    exit 0
+	else
+	    exit 1
+	fi
+        ;;
+    *)
+    	dback_list_usage
+	exit 1
+        ;;
+    esac
+
+    echo "dback backup sets available for restore to this machine:"
+    machname="$(hostname -s)"
+
+    echo "Backups from this machine \"${machname}\":"
+
+    for vol in /Volumes/*
+    do
+	dropping="${vol}/${SNAPSHOT_DIR}/.dback.ident"
+	if [ ! -e "$dropping" ]
+	then
+	    continue
+	fi
+
+	overdir="${vol}/${SNAPSHOT_DIR}/${machname}"
+    	if [ -e "${overdir}" ]
+	then
+	    echo "Dback backup volume \"$(basename "${vol}")\"..."
+	    cd "${overdir}" || exit 1
+	    for subvol in *
+	    do
+		echo "    ... backing up volume \"${subvol}\":"
+		cd "${overdir}/${subvol}"
+		for file in *
+		do
+		    case "${file}" in
+		    inProgress|Latest|*.log|*.inProgress)
+			;;
+		    *)
+			echo "        \"${overdir}/${subvol}/${file}\""
+			;;
+		    esac
+		done
+		if [ -e "Latest" ]
+		then
+		    echo "        Latest" '->' "$(readlink "${PWD}/Latest")"
+		fi
+		if [ -e .Trash ]
+		then
+		    count=$(ls .Trash | wc -l | tr -d ' ' )
+		    if [ $count -gt 0 ]
+		    then
+		        echo "        ($count items in trashcan)"
+		    fi
+		fi
+	    done
+	fi
+    done
+
+}
+# End function dback_list
+
+###############################################################################
+function dback_list_usage
+# ([help]) 
+{
+    cat <<EOF
+Usage: dback list [help]
+
+Lists all mounted backup sets.
+
+EOF
+}
+# End function dback_list_usage
+
+###############################################################################
+function dback_trash
+# (help) or (dir dir dir ... )
+{
+    local dir
+    local arena
+    local overdir
+    local dropping
+    local trash
+    local latestlink
+    local linkdest
+
+    # Take care of help or improper usage
+    case $# in
+    0)
+    	dback_trash_usage
+	exit 1
+        ;;
+    1)
+	if [ "$1" == "help" ]
+	then
+	    dback_trash_usage
+	    exit 0
+	fi
+        ;;
+    esac
+
+    # Need privilege to really do work
+    su_check
+
+    for dir in "$@" 
+    do
+        # Require that the dback.identifier exists
+        arena="$(dirname "$dir")"
+        overdir="$(dirname "$arena")"
+        dropping="$(dirname "$overdir")/.dback.ident"
+	if [ ! -e "$dropping" ]
+	then
+	    echo "WARNING: Identifier \"${dropping}\" not found."
+	    echo "    Skipping input"
+	    echo "    \"${dir}\""
+	    continue
+	fi
+
+	# Don't remove Latest backup
+	latestlink="${arena}/Latest"
+	linkdest="$(readlink "${latestlink}")"
+	if [ "$linkdest" == "$(basename "$dir")" ]
+	then
+	    echo "WARNING: input"
+	    echo "    \"${dir}\""
+	    echo "    is Latest in its series. Skipped."
+	    continue
+	fi
+
+	lock_on "$arena" $$
+
+	# Create the ".Trash" directory if necessary
+	trash="$(dirname "$dir")/.Trash"
+	if [ ! -e "$trash" ]
+	then
+	    echo "Creating trashcan "
+	    echo "    \"${trash}\""
+	    mkdir "$trash" || exit 1
+	fi
+
+	# Finally, do the deed.
+	mv "$dir" "$trash" || exit 1
+	if [ -e "${dir}.log" ]
+	then
+	    mv "${dir}.log" "$trash"
+	fi
+
+	lock_off
+    done
+}
+# End function dback_trash
+
+###############################################################################
+function dback_trash_usage
+# ([help]) 
+{
+    cat <<EOF
+Usage: 
+    dback trash dir dir dir ...
+    dback trash [help]
+
+Sends one or more backup sets to a trashcan. The dback "list"
+command provides a list of backup sets that can be trashed.
+
+Example:
+    sudo dback trash \\
+        '/Volumes/My External USB Drive/snapshots/My Powerbook/Macintosh HD/2011-01-17-233228'
+
+EOF
+}
+# End function dback_trash_usage
+
+###############################################################################
+function dback_empty
+# (backupvol subvol) or (help) 
+{
+    local dir
+    local arena
+    local overdir
+    local dropping
+    local trash
+    local machname
+
+    # Take care of help or improper usage
+    case $# in
+    1)
+	if [ "$1" == "help" ]
+	then
+	    dback_empty_usage
+	    exit 0
+	else
+	    dback_empty_usage
+	    exit 1
+	fi
+        ;;
+    2)
+        ;;
+    *)
+    	dback_empty_usage
+	exit 1
+        ;;
+    esac
+
+    # Need privilege to really do work
+    su_check
+
+    machname="$(hostname -s)"
+    arena="/Volumes/${1}/${SNAPSHOT_DIR}/${machname}/${2}"
+    overdir="$(dirname "$arena")"
+    dropping="$(dirname "$overdir")/.dback.ident"
+    if [ ! -e "$dropping" ]
+    then
+	echo "ERROR: Identifier \"${dropping}\" not found."
+	exit 1
+    fi
+
+    trash="${arena}/.Trash"
+    cd "$trash" || exit 1
+    lock_on "$arena" $$
+    for file in *
+    do
+        echo rm -rf "$file"
+        trap '(exit 1)' 2
+        rm -rf "$file"
+    done
+    lock_off
+}
+# End function dback_empty
+
+###############################################################################
+function dback_empty_usage
+# ([help]) 
+{
+    cat <<EOF
+Usage: 
+    dback empty dback_volume backed_up_volume 
+    dback empty [help]
+
+Empties a dback trashcan. The dback "list" command indicates a set of
+dback volumes and backed up volumes that can be processed. 
+
+Note: this command will only empty a trashcan associated with the host
+computer.
+
+Example:
+    sudo dback empty 'My External USB Drive' 'Macintosh HD'
+
+EOF
+}
+# End function dback_empty_usage
+
+###############################################################################
+function dback_copy
+# (<arbitrary rsync arguments>) or (help) 
+{
+
+    local -a array
+    local psource
+    local pdestination
+    local limit
+    local index
+    local index2
+
+    # Take care of help or improper usage
+    case $# in
+    0)
+        dback_copy_usage
+	exit 1
+	;;
+    1)
+	if [ "$1" == "help" ]
+	then
+	    dback_copy_usage
+	    exit 0
+	else
+	    dback_copy_usage
+	    exit 1
+	fi
+        ;;
+    esac
+
+    # Separate last two arguments
+    limit=$(($# - 1))
+    index=1
+    while [ $index -lt $limit ]
+    do
+        array[$index]="$1"
+	shift
+	let index++
+    done
+    psource="$1"
+    shift
+    pdestination="$1"
+
+    # Call through to appropriate rsync
+    $RSYNC_SUB "$psource" "$pdestination" "no" "${array[@]}"
+}
+# End function dback_copy
+
+###############################################################################
+function dback_copy_usage
+# ([help]) 
+{
+    cat <<EOF
+Usage: 
+    dback copy rsync_arg1 rsync_arg2 ...
+    dback copy [help]
+
+Calls through to rsync, using options that preserve file attributes, 
+and applying recursion. 
+
+Unlike other dback commands,
+ - No error checking
+ - No checking for root privilege (super user)
+ - No log file
+ - No --exclude options calling rsync
+ - No --delete options calling rsync
+
+Example:
+    dback copy -v /tmp/whatever '/Volumes/Scratch Disk/tmp'
+
+EOF
+}
+# End function dback_empty_usage
+
+###############################################################################
+function dback_rsync_backup
+# (source destination [options...])
+{
+    local source
+    local destination
+    local linkfrom
+    local linkto
+
+    source="$1"
+    shift
+    destination="$1"
+    shift
+
+    # Programming note: switching to symbolic links is probably unnecessary
+    # here. It makes the {logfile} more informative, but only by a little.
+    linkfrom="$(readlink "$source")"
+    if [ "x${linkfrom}" == "x" ]
+    then
+        linkfrom="$source"
+    fi
+    linkto="$(readlink "$destination")"
+    if [ "x${linkto}" == "x" ]
+    then
+        linkto="$destination"
+    fi
+
+    # Programming note: the following "egrep -v" filters out the copious
+    # status messages from the Bombich Carbon Copy Cloner rsync. Other
+    # rsync programs should not be affected.
+    cd "$linkfrom" || exit 1
+    $RSYNC_SUB \
+	. "$linkto" "no" \
+        --delete --delete-excluded \
+	--exclude-from="$rsync_excludes" \
+	"$@" \
+	2>&1 | \
+	egrep -v '^S;' | \
+	tee -a "${logfile}"
+}
+# End function dback_rsync_backup
+
+###############################################################################
+function dback_rsync_restore
+# (source destination [options...])
+{
+    local source
+    local destination
+    local linkfrom
+    local linkto
+
+    source="$1"
+    shift
+    destination="$1"
+    shift
+
+    # Programming note: switching to symbolic links is probably unnecessary
+    # here. It makes the {logfile} more informative, but only by a little.
+    linkfrom="$(readlink "$source")"
+    if [ "x${linkfrom}" == "x" ]
+    then
+        linkfrom="$source"
+    fi
+    linkto="$(readlink "$destination")"
+    if [ "x${linkto}" == "x" ]
+    then
+        linkto="$destination"
+    fi
+
+    cd "$linkfrom" || exit 1
+
+    # Programming note: the following "egrep -v" filters out the copious
+    # status messages from the Bombich Carbon Copy Cloner rsync. Other
+    # rsync programs should not be affected.
+    #
+    # Programming note: when the {source} is a dback backup, the exclusions
+    # used here have no practical effect. However, if the {source} is (for
+    # example) a bootable volume, then these exclusions improve reliability.
+    $RSYNC_SUB \
+        . "${linkto}" "yes" \
+        --delete --delete-excluded \
+	--exclude-from="$rsync_excludes" "$@" \
+	2>&1 | \
+	egrep -v '^S;' | \
+	tee -a "${logfile}"
+}
+# End function dback_rsync_restore
+
+###############################################################################
+function bombich_rsync_sub
+# (source destination strict [options ...])
+{
+    local source
+    local destination
+    local strict
+    local status
+
+    source="$1"
+    shift
+    destination="$1"
+    shift
+    strict="$1"
+    shift
+
+    echo "Using :"
+    "$RSYNC3" --version
+    echo " "
+    echo "Invoking from ${PWD} :"
+    echo "$RSYNC3" -aNHAXx --protect-decmpfs --fileflags --force-change \
+        --protect-args --no-inc-recursive --numeric-ids \
+	"$@" \
+	"$source" "$destination"
+    echo " "
+
+    touch -f "${trapfile}" || exit 1
+
+    "$RSYNC3" -aNHAXx --protect-decmpfs --fileflags --force-change \
+        --protect-args --no-inc-recursive --numeric-ids \
+	"$@" \
+	"$source" "$destination"
+
+    status=$?
+    if [ "$strict" == "yes" ]
+    then
+	if [ $status -ne 0 ]
+	then
+	    echo_log " "
+	    echo_log "ERROR: rsync returned status $status"
+	    echo_log "       Execute dback again, exactly as before."
+	    exit $status
+	fi
+    else
+	if [ \( $status -ne 0 \) -a \( $status -ne 23 \) -a \
+	     \( $status -ne 24 \) ]
+	then
+	    exit $status
+	fi
+    fi
+
+    rm -f "${trapfile}"
+}
+# End function bombich_rsync_sub
+
+###############################################################################
+function apple_rsync_sub
+# (source destination strict [options ...])
+{
+    local source
+    local destination
+    local status
+    local strict
+
+    source="$1"
+    shift
+    destination="$1"
+    shift
+    strict="$1"
+    shift
+
+    echo "Using :"
+    "$RSYNC2" --version
+    echo " "
+    echo "Invoking from ${PWD} :"
+    echo "$RSYNC2" -a -EHPx --numeric-ids --relative --force \
+	--exclude=/private/var/spool/postfix/public \
+	--exclude=/private/var/spool/postfix/private \
+	"$@" \
+	"$source" "$destination"
+    echo " "
+
+    touch -f "${trapfile}" || exit 1
+
+    # Programming note: Apple's rsync seems to silently hang up while
+    # transferring some socket files. This is intermittent. The extra
+    # --exclude statements here are used to work around the problem.
+    "$RSYNC2" -a -EHPx --numeric-ids --relative --force \
+	--exclude='/private/var/spool/postfix/public/*' \
+	--exclude='/private/var/spool/postfix/private/*' \
+	"$@" \
+	"$source" "$destination"
+
+    # Programming note: I am not able to get Apple's rsync to exit with zero
+    # status. It always complains about something. "Strict" function argument
+    # is ignored!
+    status=$?
+    if [ \( $status -ne 0 \) -a \( $status -ne 23 \) -a \( $status -ne 24 \) ]
+    then
+	exit $status
+    fi
+
+    rm -f "${trapfile}"
+}
+# End function apple_rsync_sub
+
+###############################################################################
+function lock_on
+# (lockdir pid)
+{
+    local pid
+
+    if [ x"$lockfile" != "x" ]
+    then
+        echo "ERROR: programming error in dback script, locking."
+	exit 1
+    fi
+
+    lockfile="${1}/dback.lock"
+    pid="$2"
+
+    if [ -e "$lockfile" ]
+    then
+        echo "The area located at 
+	echo "    \"$1\" 
+	echo "may be in use by another dback process."
+	echo "If the following process is still running, wait for it to complete:"
+	cat "$lockfile"
+	echo "Otherwise, delete the following lock file and run dback again:"
+	echo "    ${lockfile}"
+	exit 1
+    fi
+
+    echo "    Machine \"$(hostname -s)\", process $$" > "$lockfile" | exit 1
+}
+# End function lock_on
+
+###############################################################################
+function lock_off
+# (<no arguments>)
+{
+    if [ x"$lockfile" == "x" ]
+    then
+        echo "ERROR: programming error in dback script, unlocking."
+	exit 1
+    fi
+    if [ ! -e "$lockfile" ]
+    then
+        echo "ERROR: programming error in dback script, unlocking."
+	exit 1
+    fi
+
+    rm "$lockfile" || exit 1
+    lockfile=""
+}
+# End function lock_off
+
+###############################################################################
+function latestlink_fail
+# (arena full_link_location)
+{
+    cat <<EOF
+ERROR: the file 
+    "$2" 
+exists, but it does not point to a useful location. Something is wrong
+with the backup volume. There are two possible remedies:
+
+1. You can simply delete the bad file. If you do, then the next backup
+   to the volume will be a "full" backup. You will need root privilege
+   (sudo ...).
+
+2. You can delete the bad file and make a new, valid one. Determine which 
+   "dated" directory is the latest backup, and then link to it. For example,
+   if your latest backup in 
+       "$1" 
+    is "2011-01-17-233228", then you could do:
+       cd "$1"
+       sudo ln -s "2011-01-17-233228" LATEST
+   Then you can try your backup job again.
+
+EOF
+
+date_exit 1
+}
+# End function latestlink_fail
+
+###############################################################################
+function inprogresslink_fail
+# (arena full_link_location)
+{
+    cat <<EOF
+ERROR: the file 
+    "$2" 
+exists, but it does not point to a useful location. Something is wrong
+with the backup volume. The suggested remedy is to simply delete the bad
+file. If you do, then you should also delete any directories named
+[date].inProgress, in the area
+       "$1"
+You will need root privilege (sudo ...).
+
+EOF
+
+date_exit 1
+}
+# End function inprogresslink_fail
+
+###############################################################################
+function echo_heading
+# (<any string>)
+{
+    local message
+    local length1
+    local extra_output
+    local c
+    local line
+
+    if [ "x${logfile}" == "x" ]
+    then
+        extra_output="/dev/null"
+    else
+        extra_output="${logfile}"
+    fi
+
+    message="$(date '+%G-%m-%d %H:%M')"" ""$@"
+    length1=$(echo "$message" | wc -c)
+    if [ $length1 -gt 80 ]
+    then
+        length1=80
+    fi
+
+    echo " " | tee -a "$extra_output"
+    echo "$message" | tee -a "$extra_output"
+
+    line=""
+    for (( c=1 ; c<$length1 ; c++ ))
+    do
+        line="${line}-"
+    done
+    echo "$line" | tee -a "$extra_output"
+}
+# End function echo_heading
+
+###############################################################################
+function echo_date
+# (<any string arguments>)
+{
+    echo_log "$(date '+%G-%m-%d %H:%M')" "$@"
+}
+# End function echo_date
+
+###############################################################################
+function date_exit
+# (exit_status)
+{
+    echo_log "$(date '+%G-%m-%d %H:%M')" "exit with status" "$@"
+    if [ "x${logfile}" != "x" ]
+    then
+	echo " "
+	echo "These results written to log file "
+	echo "    \"${logfile}\""
+    fi
+    exit "$@"
+}
+# End function date_exit
+
+###############################################################################
+function echo_log
+# (<any string arguments>)
+{
+    echo "$@"
+    if [ "x${logfile}" != "x" ]
+    then
+	echo "$@" >> "${logfile}"
+    fi
+}
+# End function echo_log
+
+###############################################################################
+function su_check
+# (<no arguments>)
+{
+
+    if [ "$(id -u)" != "0" ]
+    then
+	echo "$(basename "$0"): execute as super user"
+	exit 1
+    fi
+}
+# End function su_check
+
+###############################################################################
+function dback_userguide 
+# (<no arguments>)
+{
+    # Take care of help or improper usage
+    case $# in
+    0)
+        ;;
+    1)
+        dback_userguide_usage
+	if [ "$1" == "help" ]
+	then
+	    exit 0
+	else
+	    exit 1
+	fi
+        ;;
+    *)
+    	dback_userguide_usage
+	exit 1
+        ;;
+    esac
+
+    cat <<EOF
+
+                              Dback User Guide
+                              ----------------
+Introduction
+------------
+Dback is a backup/restore system.  It is driven by  command line, and
+it is not interactive. It is specialized to the Apple OSX operating
+system and its HFS+ file system.
+
+Dback is volume oriented. It backs up or restores to a file system
+volume.  The backup media it uses is a directory on another volume.
+The backup media may contain other data, apart from dback backup sets.
+The volumes dback uses may be an ordinary disk partitions, or image
+file systems such as Apple's sparse image bundles or TrueCrypt
+encrypted file systems.
+
+Dback is a bash(1) script that is a thin layer over rsync(1). It uses
+the --link-dest option of rsync to provide multiple backups with very
+high disk space efficiency. Dback can only be used with Apple OSX at
+this time. It has been tested on OSX 10.6.4 (Snow Leopard).
+
+Should I Use It?
+---------------
+If you already use rsync for backup purposes, then you should use
+dback.  Dback uses rsync to back up your data.  A log file describing
+the backup operation is stored alongside the actual backup data, and
+this log file discloses the exact command line invocation of rsync.
+Any errors, warnings, and idle chat that rsync generates are recorded
+in the log.  If you don't like the way rsync is invoked, you can
+modify dback to use the exact command line that you prefer. This is
+documented in an appendix of this user guide.
+
+Installation
+------------
+Dback is a single bash shell script. You simply copy it to a
+convenient location and change its file permissions to readable and
+executable. This comprises the installation of dback.
+
+Dback has a "Tuning" section at the top of the script. The Tuning
+section contains items that some users may wish to change. Mainly,
+this involves selecting a version of rsync. By default, dback uses the
+version of rsync that is provided with OSX Snow Leopard.  Some users
+may prefer a different version, such as the patched rsync that the
+author of Carbon Copy Cloner talks up. 
+
+Should you wish to change rsync version, you do it in two parts:
+first, you configure rsync for an "apple style" 2.x rsync, or a
+generic 3.x version.  The behavior of these two broad classes of rsync
+programs is rather different, so dback contains separate support for
+each. What you are doing in this step is to select one type of support
+or the other.  Second, you specify the location  of your rsync
+executables. The reason for this complexity is that it allows the user
+to switch between an "Apple-style" rsync and a current rsync simply by
+commenting/uncommenting a few lines in the dback script. Each of these
+two steps requires only a one line change to dback. This is documented
+in comments of the "Tuning" section at the top of the script.
+
+How It Works
+------------
+Dback creates and updated a backup set. A backup set is a disk
+directory containing backup data, typically at the root of a disk
+volume. For example, suppose that you invoke dback for the first time
+as
+    sudo dback backup 'Macintosh HD' 'Big USB Disk' 
+Dback will commence to backup your main disk drive. It will back up to
+a disk mounted as '/Volumes/Big USB Disk'. Dback will create a backup
+set for its use. This will be the directory
+    /Volumes/Big USB Disk/${SNAPSHOT_DIR}/<machname>/Macintosh HD
+where <machname> is the name of your computer, obtained by calling 
+    hostname -s
+Consequently, a single physical disk can contain backup sets from
+multiple machines, and multiple volumes. These backup sets will be
+independent of each other.
+
+If dback is directed to use a backup disk that already exists, it will
+update rather than re-create it. Backup sets can be established on
+multiple disk drives. These backup sets will be independent of each
+other.
+
+Within a backup set (directory), dback will establish these objects:
+
+ - Individual Backups
+An individual backup is the result of executing the dback "backup"
+command. It is a directory whose name is a date. For example, a 
+directory named
+    2011-01-17-233228
+is the result of a backup that began on 2011-01-17 at time 23:22:28.
+
+ - Backup Logs
+For every individual backup, dback stores a backup log. The backup log
+describes how rsync was invoked, and any warning messages that
+occurred. For a backup named 2011-01-17-233228, the corresponding
+backup log will be named
+    2011-01-17-233228.log
+
+ - Latest Link
+The backup set will contain a file named Latest that is a symbolic 
+link to the latest backup.
+
+ - Trashcan
+When you use the "trash" subcommand of dback, it creates a directory
+named .Trash.
+
+There are two other files that only exist part of the time:
+
+ - In-Progress Backup
+When dback begins to back up, it places the backup data into a special
+directory of the form <date>.inProgress. In the above examples, the
+individual backup 2011-01-17-233228 began life as the special
+directory
+    2011-01-17-233228.inProgress. 
+
+ - In-Progress Link
+When dback begins to back up, it also creates a zero length file named
+inProgress. This file is a symbolic link to the actual in-progess
+backup, described immediately above.
+
+Backup Operation
+----------------
+The dback backup command is designed to copy an entire disk volume.
+This is typically the active root volume of your OSX machine. 
+
+Note that dback cannot back up or otherwise copy a Time Machine media
+volume.  Only a block-oriented clone operation can accomplish this.
+
+Restore From Backup
+-------------------
+Dback is designed to perform complete volume recovery, including
+disaster recovery. In this operation, the contents of the destination
+volume (if any) are completely removed. Before you begin your restore
+operation, you can use the command
+    dback list
+to obtain a list of available backups.
+
+Dback restore has been tested
+under a particular procedure, so this procedure is recommended.  It
+is:
+    0. Your backup set must be a copy of a complete, bootable HFS+ 
+       volume, such as your main disk partition. Don't even start
+       without one.
+    1. Use the dback restore command, and
+       a. Use a scratch disk as the destination.
+    2. Boot from the scratch disk and perform basic testing.
+    3. Clone the scratch disk to the production disk.
+
+The dback restore command can also function in a fashion similar to a
+disk volume "clone" operation. Primarily, this command is used to copy
+a dback backup to a disk volume. You can also use this command to copy
+any bootable volume to another volume. Afterwards, that other volume
+will become bootable as well. You can customize the exclusion list
+"rsync_excludes" near the top of the script to implement a sort of
+partial cloning operation. For example, you can use the dback restore
+command to "clone" a bootable Time Machine media volume, but exclude
+the Time Machine backup data from the cloning operation.
+
+The dback backup function and the dback restore function both use
+rsync to copy data and attributes. If you have your own methods for
+restoring with rsync, you can easily modify dback to suit your
+preferences. This is detailed in an appendix to this user manual.
+
+Copy Operation
+--------------
+Dback provides a "copy" command that is quite different from other
+dback commands. The "copy" command cals through to rsync, adding
+command line options that preserve file attributes, and that process
+source(s) recursively. Unlike other dback commands,
+ - The number of arguments is arbitrary (but must be at least two).
+ - There is no error checking
+ - There is no checking for root privilege (super user)
+ - No log file is created
+ - The usual --exclude arguments to rsync are not applied
+ - The usual --delete arguments to rsync are not applied
+
+The purpose of this command is to apply those arguments to rsync that
+preserve HFS+ file attributes.
+
+This command is dangerous. It is suggested that the user supply the
+--dry-run option ("dry run") when using this command. That will cause
+rsync to merely "show what would have been transferred" if this option
+were omitted.  Afterwards, the same command can be used, without the
+--dry-run argument.
+
+User Maintenance Of Backup Sets
+-------------------------------
+Due to the nature of rsync, dback backup sets are quite robust in the
+face of changes. An individual backup may be deleted by the user, as
+long as it is not the backup pointed to by the "Latest" link. For your
+convenience, you may obtain the meaning of all mounted "Latest" links
+using this command:
+    dback list
+
+Except for the above issue with the Latest link, an individual backup
+may be deleted by the user; other backups in the backup set will not
+become corrupted. Eventually, your backup disk will become full, so
+you will have to delete older backups. The dback commands
+    trash
+    empty
+are dedicated to this purpose. If you prefer, you may simply delete
+individual backups yourself. I have found that Apple's Finder and
+Trash Basket GUI elements may have trouble when deleting very large
+hierarchies of directories and files. I suggest that you resort to the
+command line, ie
+    sudo rm -rf 2011-01-17-233228
+
+If a dback backup task is interrupted, it will leave behind "in
+progress" elements in the backup set. These are described above. There
+is no need to delete these. The next dback backup will resume
+operations on the "in progress" elements. Due to the nature of rsync,
+this is perfectly safe.  However, if you wish to delete the "in
+progress" elements, be sure to delete both of them. Delete the file
+named inProgress, and delete the directory that it points to.
+
+Which Version of Rsync?
+----------------------
+I have tested three versions of rsync. This is my experience with them.
+
+ - Apple's Rsync
+
+OSX ships with a version of rsync 2.6.9. that Apple has modified. This
+rsync has the tremendous advantage that it part of the computer, as
+shipped. Dback is configured to work with this version of rsync, and
+no modification (of dback) is required.
+
+I have found that this rsync changes the creation date of files.
+Specifically, if a file's creation date is different from its
+modification date, then a copy of this file made by rsync will have
+its cration date changed so that it becomes the same as the
+modification date.
+
+I have not found a situation where this issue affects the operation of
+Macintosh computers. Except for one instance: operation of dback
+itself. Files whose creation and modification dates are different may
+not be hard-linked during a dback backup. This does not cause loss of
+data, but it does make dback backup sets less space-efficient .
+
+In my experience, this rsync always exits with status 23 or 24.
+Therefore, dback is unable to do strict error checking from its
+"restore" command. Instead, the user must read the warning messages
+that rsync emits during a dback "restore" operation.
+
+ - Patched rsync 3.0.7. from Bombich
+
+On his web pile, Bombich presents a set of instructions for building
+rsync 3.0.7. from the original sources. These instructions include
+patches that cause rsync to faithfully reproduce all file attributes
+peculiar to HFS+, including extended attributes, compression status,
+and file dates.
+
+The original sources can be obtained from the rsync web pile
+http://samba.anu.edu.au/rsync/ . Bombich's instructions are posted at
+http://www.bombich.com/rsync . You also need Apple's xcode for
+compiling the sources. I had no trouble building rsync according to
+these instructions, since I already had xcode installed. However, ...
+
+I can get this rsync to fail. In particular, I can induce rsync to
+omit copying files that should be copied. Admittedly, the conditions
+for this failure are rather unusual, involving rather "special" ACLs.
+
+In correspondence with Bombich, I received two patches to rsync 3.0.7.
+that remove this issue. However, the only place these patches are
+available is a forum on the bombich.com web pile. These patches have
+not undergone much testing, except what I have been able to
+accomplish.
+
+ - Rsync Contained in Carbon Copy Cloner
+
+Bombich publishes OSX software named Carbon Copy Cloner (CCC). This
+software contains a version of rsync 3.0.6. that has been modified in
+order to provide features for use by CCC. I have found it to be an
+excellent, general purpose rsync as well. After CCC is installed, this
+rsync can be found at
+    /Applications/Carbon Copy Cloner.app/Contents/MacOS/\\
+        ccc_helper.app/Contents/MacOS/rsync
+
+This rsync is part of a software package that has been in wide use for
+several years. As such, it is well proven.
+
+This rsync may be copied and renamed for convenience. The only issue I
+have with this rsync is that it emits a large quantity of status
+messages while it works. In dback, I filter these messages by using 
+this command:
+    egrep -v '^S;'
+
+My opinion: I prefer the last version of rsync, the 3.0.6. version
+from Carbon Copy Cloner. My second choice would be Apple's built-in
+2.6.9. version.
+
+Modifying Rsync Execution
+-------------------------
+
+Dback is a backup utility for folks who like to use rsync. I expect
+that this audience would have their own ideas about what constitutes
+proper use of rsync, so I made it easy to change this.
+
+If you wish to change the list of excluded files used by rsync, search
+for the string 
+    rsync_excludes.
+The first use of this string by dback is in the "tuning" section. This
+is a place for users to add custom file exclusions.  The second use of
+this string is my list of file exclusions that I believe should apply
+to all users. Change it if you like.
+
+If you wish to change the command line options used by rsync with the
+dback "backup" subcommand, you can modify the function
+rsync_dback_backup. At the bottom of this function is a call to
+another function RSYNC_SUB. You can modify the command line options
+here.
+
+If you wish to change the command line options used by rsync with the
+dback "restore" subcommand, you can modify the function
+rsync_dback_restore. At the bottom of this function is a call to
+another function RSYNC_SUB. You can modify the command line options
+here.
+
+That should be all you need to know in order to change the way rsync
+is invoked by dback. If you wish to make changes that are specific to
+either Apple's version of rsync or to rsync 3.x, there are two more
+dback functions to consider:
+
+If dback is configured to use Apple's version of dback, then it will
+call a function apple_rsync_sub. This function calls rsync, however it
+uses the symbol RSYNC2. You can modify the command line options here.
+Your modifications will apply to both the "backup" and "restore"
+commands.
+
+If dback is configured to use a 3.x version of dback, then it will
+call a function bombich_rsync_sub. This function calls rsync, however
+it uses the symbol RSYNC3. You can modify the command line options
+here. Your modifications will apply to both the "backup" and "restore"
+commands.
+
+Appendix 1: Dback Annoyances
+----------------------------
+
+A few things that you might bother you.
+
+ - Temporary Files
+Dback writes a few files to /tmp and does not always clean them up
+afterwards.  The operationg system will take care of the mess the next
+time the computer is booted.
+
+ - Deleting Backups
+It is slow. The Finder app of OSX fails to send these items to the
+sytem trash basket. "Rm -rf" works, slowly. I also implemented the
+dback "trash" and "empty" commands to help with this chore (a little).
+Deleting a single backup might not free much disk space. This is the
+nature of the file system hard links that dback uses. You might have
+to delete several individual backups to recover a significant amount
+of disk space.
+
+Appendix 2: Stupid Dback Tricks
+-------------------------------
+
+This is how I use dback. I use this procedure to maintain backup disks
+that are bootable, and encrypted. In other words, I don't need an OSX
+Install DVD to perform a full disaster recovery.
+
+I begin with a USB or Firewire disk drive that I configure as a single
+HFS+ partition, using the Disk Utility app that is part of OSX. This
+will become my self-contained dback backup media volume.  I enable the
+"ownership" attribute of this disk drive. This can be performed from
+the command line, as
+    sudo diskutil enableOwnership <volume_name>
+
+Next, I install OSX to the above disk drive. The easiest way to do
+this is to boot your computer from your OSX install DVD, and direct it
+to install to the above disk drive. NOT TO YOUR MAIN DISK DRIVE!
+
+During the install process, I configure a minimal install. No X11, no
+foreign languages, and so forth. OSX boots from the disk drive, and I
+go through the normal procedure of creating a single user account, and
+so forth. Then, I execute a software update, in order to get the
+latest fixes from OSX.
+
+From this copy of OSX, I give my computer the same name that I use
+within my "real" OSX. The reason for this is described at the end of
+this section.
+
+Next, I install a few applications that I will need for backup and 
+restore operations:
+ - dback (naturally!)
+ - rsync (my preferred version)
+ - TrueCrypt (Back to this later)
+
+Next, I uninstall everything from /Applications and
+/Applications/Utilities that is not relevant to backup and recovery.
+This includes Safari, Address Book, Dictionary, all of it.
+
+After emptying the recycle bin, I have a rather lean version of OSX on
+my new USB or Firewire disk drive. But I am not done with it yet. I
+boot OSX from my main computer disk drive, and I apply afsctool
+(https://github.com/jrk/afsctool) to the USB or Firewire drive.
+Afsctool is a program that applies HFS+ compression. I use the highest
+compression level, and I apply it to the entire drive.
+
+My USB or Firewire drive is now about 3.6 GBytes large.
+
+Next, I create a large encrypted file on the USB or Firewire drive,
+using TrueCrypt. I size this file to take up all available space on
+the drive, save for three GBytes. This three GBytes will be used by
+OSX for swap, /tmp, and possible further expansion.
+
+The above TrueCrypt file will hold my dback backups. In other words,
+before I do a backup, I use TrueCrypt to mount the encrypted file
+system. Then I direct dback to use it as a backup destination.
+
+I only have to go through the above procedure once. Any time that I
+want to initialize a new backup disk, I use the dback "restore"
+command to reproduce an existing backup disk onto the new one. I
+have used the "Tuning" section of dback to exclude my single, large,
+TrueCrypt encrypted file.
+
+Using this backup media, a disaster recovery proceeds as follows:
+    1. Boot OSX from the backup media.
+    2. Execute TrueCrypt from the backup media.
+       a. Mount the encrypted file system.
+    3. Execute the "restore" command of dback
+       a. The source of the "restore" command is within
+          the encrypted file system.
+
+There is one other use for my backup disk. I can use it to perform an
+"offline" backup of my computer's main disk drive. The procedure is
+    1. Boot OSX from the backup media.
+    2. Execute TrueCrypt from the backup media.
+       a. Mount the encrypted file system.
+    3. Execute the "backup" command of dback
+       a. The source of the "backup" command is 'Macintosh HD',
+          which is idle.
+       b. The destination of the "restore" command is within
+          the encrypted file system.
+
+This is certainly less convenient than backing up the main disk drive
+while it is "live." However, this procedure does inspire confidence.
+Since my main disk drive is not in use, I have confidence that my
+backup captures a perfectly consistent state of the disk drive. 
+
+The the reason that I chose my computer's real name when I installed
+OSX onto the backup drive: Dback is sensitive to the name of the
+computer, so it is necessary to use the same name.
+
+EOF
+}
+# End function dback_userguide 
+
+###############################################################################
+function dback_userguide_usage
+# ([help]) 
+{
+    cat <<EOF
+Usage: dback userguide [help]
+
+Prints out a user guide. Note: this will be lengthy.
+
+EOF
+}
+# End function dback_userguide_usage
+
+###############################################################################
+
+# Just call the main function to get started...
+main "$@"
