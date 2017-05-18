@@ -19,6 +19,9 @@ Getting Started
 ---------------
 
 Copy dback or dbackL somewhere convenient. Assuming the script is in your path, issue the command
+
 $ dback userguide | less
+
 or
+
 $dbackL userguide | less
