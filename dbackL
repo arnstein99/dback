@@ -891,7 +891,7 @@ function dbackL_rsync_backup
     fi
 
     # Begin argument array
-    array=(--delete --delete-after --delete-excluded --ignore-errors \
+    array=(no --delete --delete-after --delete-excluded --ignore-errors \
 	--exclude-from="$rsync_excludes" --force "$@")
 
     # Handle remote versus local rsync
