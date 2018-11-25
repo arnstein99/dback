@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.17"
+dbackL_Version="dbackL 1.18"
 logfile=""
 lockfile=""
 acls="yes"
@@ -865,7 +865,7 @@ function dbackL_rsync_backup
         cd "$bare_source" || exit 1
     else
     	array=("${bare_client}." "${linkto}" "${array[@]}" \
-	    --rsync-path="cd \"${bare_source}\" ; rsync")
+	    --rsync-path="cd \"${bare_source}\" ; sudo rsync")
     fi
 
     $RSYNC_SUB "${array[@]}" 2>&1 | tee -a "${logfile}"
@@ -903,6 +903,7 @@ function dbackL_rsync_restore
         "${linkfrom}" "${destination}" "yes" \
         --delete --delete-after --force --ignore-errors \
 	--exclude-from="$rsync_excludes" --exclude=/boot --exclude=/vmlinuz \
+	--rsync-path="sudo rsync" \
 	"$@" \
 	2>&1 | \
 	tee -a "${logfile}"
@@ -971,12 +972,17 @@ function v3_0_9_rsync_sub
 	    echo_log "       Execute dbackL again, exactly as before."
 	    exit $status
 	fi
-    else
+    elif [ "$strict" == "no" ]
+    then
 	if [ \( $status -ne 0 \) -a \( $status -ne 23 \) -a \
 	     \( $status -ne 24 \) ]
 	then
 	    exit $status
 	fi
+    else
+        echo_log " "
+	echo_log "ERROR: programming error, strict = ${strict}"
+	exit 1
     fi
 
     rm -f "${trapfile}"
