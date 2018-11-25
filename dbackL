@@ -4,51 +4,6 @@
 # Execute this shell script without arguments for help.
 #
 ###############################################################################
-# $Id: dbackL,v 1.16 2013/10/03 05:58:57 David Exp David $
-#
-# $Log: dbackL,v $
-# Revision 1.16  2013/10/03 05:58:57  David
-# Work on the usage guide.
-#
-# Revision 1.15  2013/10/02 05:47:44  David
-# Add -checksum option. Exclude /run and .gvfs from backups.
-#
-# Revision 1.14  2013/10/01 05:33:23  David
-# Rsync is restricted to one file system by default. A command line option is provided to override this restriction.
-#
-# Revision 1.13  2013/09/29 08:21:03  David
-# Fix a stupid shell programming error, twice. Improve usage messages.
-#
-# Revision 1.12  2013/09/28 19:06:14  David
-# Improve rsync trapfile handling.
-#
-# Revision 1.11  2013/09/28 18:07:39  David
-# Improve some messages.
-#
-# Revision 1.10  2013/09/28 06:56:47  David
-# Add compatibility options. Fix errors in local operation. Needs more testing.
-#
-# Revision 1.9  2013/09/28 05:33:47  David
-# Add compatibility mode. Under development.
-#
-# Revision 1.8  2013/09/28 05:06:16  David
-# Selectively turn off options to rsync. Not tested yet.
-#
-# Revision 1.7  2013/09/27 04:18:51  David
-# Fix corner cases in previous check in.
-#
-# Revision 1.6  2013/09/26 06:25:48  David
-# Use --rsync-path to position the remote rsync process.
-#
-# Revision 1.5  2013/09/26 04:31:12  David
-# Simplify and improve directory handling. On restore, don't do /vmlinuz.
-#
-# Revision 1.4  2013/09/25 05:46:54  David
-# A bug fix, and some more flags used when calling rsync(1).
-#
-# Revision 1.3  2013/09/24 04:17:51  David
-# Backup and restore seem to be working.
-###############################################################################
 
 # Tuning
 # ------
@@ -71,6 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
+dbackL_Version="dbackL 1.17"
 logfile=""
 lockfile=""
 acls="yes"
@@ -237,7 +193,7 @@ function dbackL_version
         ;;
     esac
 
-    echo '$Id: dbackL,v 1.16 2013/10/03 05:58:57 David Exp David $,'
+    echo "$dbackL_Version"
     echo 'configured to use this verion of rsync:'
     "$RSYNC" --version
 }
