@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.18"
+dbackL_Version="dbackL 1.19"
 logfile=""
 lockfile=""
 acls="yes"
@@ -37,8 +37,9 @@ checksum="no"
 trapfile_base=".dbackL.inprogress"
 trapfile=""
 
-# These exclusions are needed to reliably create a bootable volume.
+# These exclusions apply to all backups
 cat <<EOF >> "$rsync_excludes" || exit 1
+/nfs
 /proc
 /run
 /sys
@@ -46,8 +47,25 @@ cat <<EOF >> "$rsync_excludes" || exit 1
 /tmp
 /mnt
 /media
+/snap
+/var/tmp
 .gvfs
 /lost+found
+EOF
+
+# In addition, these exclusions apply to restores
+restore_excludes="$(mktemp -t dbackLXXX)"
+cat <<EOF > "$restore_excludes" || exit 1
+/boot
+/etc/crypttab
+/etc/fstab
+/etc/lvm
+/var/initramfs-tools
+/var/shim-signed
+/initrd.img
+/initrd.img.old
+/vmlinuz
+/vmlinuz.old
 EOF
 
 ###############################################################################
@@ -902,8 +920,7 @@ function dbackL_rsync_restore
     $RSYNC_SUB \
         "${linkfrom}" "${destination}" "yes" \
         --delete --delete-after --force --ignore-errors \
-	--exclude-from="$rsync_excludes" --exclude=/boot --exclude=/vmlinuz \
-	--rsync-path="sudo rsync" \
+	--exclude-from="$rsync_excludes" --exclude-from="$restore_excludes" \
 	"$@" \
 	2>&1 | \
 	tee -a "${logfile}"
