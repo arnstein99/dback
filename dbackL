@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.19"
+dbackL_Version="dbackL 1.20"
 logfile=""
 lockfile=""
 acls="yes"
@@ -47,7 +47,6 @@ cat <<EOF >> "$rsync_excludes" || exit 1
 /tmp
 /mnt
 /media
-/snap
 /var/tmp
 .gvfs
 /lost+found
