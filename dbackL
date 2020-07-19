@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.20"
+dbackL_Version="dbackL 1.21"
 logfile=""
 lockfile=""
 acls="yes"
@@ -55,10 +55,13 @@ EOF
 # In addition, these exclusions apply to restores
 restore_excludes="$(mktemp -t dbackLXXX)"
 cat <<EOF > "$restore_excludes" || exit 1
+/crypto_keyfile.bin
 /boot
 /etc/crypttab
+/etc/default/grub
 /etc/fstab
 /etc/lvm
+/etc/openswap.conf
 /var/initramfs-tools
 /var/shim-signed
 /initrd.img
