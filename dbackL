@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.20"
+dbackL_Version="dbackL 1.21"
 logfile=""
 lockfile=""
 acls="yes"
@@ -50,6 +50,7 @@ cat <<EOF >> "$rsync_excludes" || exit 1
 /var/tmp
 .gvfs
 /lost+found
+/backup
 EOF
 
 # In addition, these exclusions apply to restores
@@ -355,7 +356,7 @@ function dbackL_backup
     then
     	# Normal, incremental backup
 
-	datestring="$(date '+%G-%m-%d-%H%M%S')"
+	datestring="$(date '+%Y-%m-%d-%H%M%S')"
 	middle="${datestring}.inProgress"
 	new="${datestring}"
 	logfile="${new}.log"
@@ -403,7 +404,7 @@ function dbackL_backup
     else
     	# Initial backup, no previous deltas.
 
-	datestring="$(date '+%G-%m-%d-%H%M%S')"
+	datestring="$(date '+%Y-%m-%d-%H%M%S')"
 	middle="${datestring}.inProgress"
 	new="${datestring}"
 	mkdir -p "${middle}" || date_exit 1
@@ -521,7 +522,7 @@ function dbackL_restore
     source_dir="$PWD"
     cd "$oldloc" || exit 1
 
-    datestring="$(date '+%G-%m-%d-%H%M%S')"
+    datestring="$(date '+%Y-%m-%d-%H%M%S')"
     logfile="${source_dir}/dbackL_restore_${datestring}.log"
     logfile=$(realpath "$logfile")
     touch "$logfile" || exit 1
@@ -898,11 +899,35 @@ function dbackL_rsync_restore
     local destination
     local linkfrom
     local oldloc
+    local bare_client
+    local -a array
 
     source="$1"
     shift
     destination="$1"
     shift
+
+    # Split destination into host and path
+    echo "$destination" | grep -l '::'
+    if [ $? -eq 0 ]
+    then
+        echo "ERROR: cannot work with rsync daemon (:: notation)"
+	exit 1
+    fi
+    echo "$destination" | grep -l ':'
+    if [ $? -eq 0 ]
+    then
+        bare_destination="${destination##:}"
+	bare_client="${source%%:*}:"
+    else
+        bare_destination="${source}"
+	bare_client=""
+    fi
+    if [ "x${bare_destination}" == "x" ]
+    then
+        echo "ERROR: cannot handle empty path in restore destination \"${destination}\""
+	exit 1
+    fi
 
     # Programming note: switching to symbolic links is probably unnecessary
     # here. It makes the {logfile} more informative, but only by a little.
@@ -912,17 +937,25 @@ function dbackL_rsync_restore
         linkfrom="$source"
     fi
 
+    # Begin argument array
+    array=("yes" --delete --delete-after --force --ignore-errors \
+	--exclude-from="$rsync_excludes" --exclude-from="$restore_excludes" \
+	"$@")
+
+    # Handle remote versus local rsync
+    if [ "x${bare_client}" == "x" ]
+    then
+        array=("${linkfrom}" "${destination}" "${array[@]}")
+    else
+        array=("${linkfrom}" "${destination}" "${array[@]}" \
+	    --rsync-path="sudo rsync")
+    fi
+
     # Programming note: when the {source} is a dbackL backup, the
     # --exclude-from used here has no practical effect. However, if the 
     # {source} is (for example) some bootable volume, then these exclusions 
     # improve reliability.
-    $RSYNC_SUB \
-        "${linkfrom}" "${destination}" "yes" \
-        --delete --delete-after --force --ignore-errors \
-	--exclude-from="$rsync_excludes" --exclude-from="$restore_excludes" \
-	"$@" \
-	2>&1 | \
-	tee -a "${logfile}"
+    $RSYNC_SUB "${array[@]}" 2>&1 | tee -a "${logfile}"
 }
 # End function dbackL_rsync_restore
 
@@ -1145,7 +1178,7 @@ function echo_heading
         extra_output="${logfile}"
     fi
 
-    message="$(date '+%G-%m-%d %H:%M')"" ""$@"
+    message="$(date '+%Y-%m-%d %H:%M')"" ""$@"
     length1=$(echo "$message" | wc -c)
     if [ $length1 -gt 80 ]
     then
@@ -1168,7 +1201,7 @@ function echo_heading
 function echo_date
 # (<any string arguments>)
 {
-    echo_log "$(date '+%G-%m-%d %H:%M')" "$@"
+    echo_log "$(date '+%Y-%m-%d %H:%M')" "$@"
 }
 # End function echo_date
 
@@ -1176,7 +1209,7 @@ function echo_date
 function date_exit
 # (exit_status)
 {
-    echo_log "$(date '+%G-%m-%d %H:%M')" "exit with status" "$@"
+    echo_log "$(date '+%Y-%m-%d %H:%M')" "exit with status" "$@"
     if [ "x${logfile}" != "x" ]
     then
 	echo " "
