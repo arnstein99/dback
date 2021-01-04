@@ -50,7 +50,6 @@ cat <<EOF >> "$rsync_excludes" || exit 1
 /var/tmp
 .gvfs
 /lost+found
-/backup
 EOF
 
 # In addition, these exclusions apply to restores
@@ -963,6 +962,8 @@ function dbackL_rsync_restore
 function v3_0_9_rsync_sub
 # (source destination strict [options ...])
 {
+    # Programming note: this function uses syntax of rsync version 3.0.9.
+    # The syntax has been stable for several releases.
     local source
     local destination
     local strict
