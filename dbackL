@@ -8,7 +8,7 @@
 # Tuning
 # ------
 
-# This is your personal list of files to exclude from backup, in a format 
+# This is your personal list of files to exclude from backup, in a format
 # recognized by rsync(1). If your backup source and destination are the same
 # machine, then you should exclude your destination directory from any backups.
 rsync_excludes="$(mktemp -t dbackLXXX)"
@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.23"
+dbackL_Version="dbackL 1.24"
 logfile=""
 lockfile=""
 acls="yes"
@@ -73,7 +73,7 @@ cat <<EOF > "$restore_excludes" || exit 1
 EOF
 
 ###############################################################################
-function main 
+function main
 # arg [...]
 {
     local -a array
@@ -83,33 +83,33 @@ function main
     # Extract global options
     while [ $# -gt 0 ]
     do
-    	arg1="$1"
-	shift
-	case "$arg1" in
-	-no-acls)
-	    acls="no"
-	    ;;
-	-no-xattrs)
-	    xattrs="no"
-	    ;;
-	-compatible)
-	    compatible="yes"
-	    ;;
-	-multi-file-systems)
-	    multifilesystems="yes"
-	    ;;
-	-checksum)
-	    checksum="yes"
-	    ;;
-	-*)
-	    echo "Unrecognized option \"${arg1}\""
-	    dbackL_usage
-	    exit 1
-	    ;;
-	*)
-	    array=("${array[@]}" "${arg1}")
-	    ;;
-	esac
+        arg1="$1"
+        shift
+        case "$arg1" in
+        -no-acls)
+            acls="no"
+            ;;
+        -no-xattrs)
+            xattrs="no"
+            ;;
+        -compatible)
+            compatible="yes"
+            ;;
+        -multi-file-systems)
+            multifilesystems="yes"
+            ;;
+        -checksum)
+            checksum="yes"
+            ;;
+        -*)
+            echo "Unrecognized option \"${arg1}\""
+            dbackL_usage
+            exit 1
+            ;;
+        *)
+            array=("${array[@]}" "${arg1}")
+            ;;
+        esac
     done
 
     # Parse regular arguments next
@@ -117,7 +117,7 @@ function main
 }
 
 ###############################################################################
-function dispatcher 
+function dispatcher
 # action [...]
 {
     local action
@@ -128,55 +128,55 @@ function dispatcher
         action="help"
     else
         action="$1"
-	shift
+        shift
     fi
     case "$action" in
     backup)
-    	dbackL_backup "$@"
-	;;
+        dbackL_backup "$@"
+        ;;
     restore)
-    	dbackL_restore "$@"
-	;;
+        dbackL_restore "$@"
+        ;;
     trash)
         dbackL_trash "$@"
-	;;
+        ;;
     empty)
         dbackL_empty "$@"
-	;;
+        ;;
     copy)
-    	dbackL_copy "$@"
-	;;
+        dbackL_copy "$@"
+        ;;
     help) :
-    	dbackL_usage
-	;;
+        dbackL_usage
+        ;;
     version) :
-    	dbackL_version "$@"
-	;;
+        dbackL_version "$@"
+        ;;
     userguide) :
-    	dbackL_userguide "$@"
-	;;
+        dbackL_userguide "$@"
+        ;;
     *) :
-    	dbackL_usage
-	exit 1
-	;;
+        dbackL_usage
+        exit 1
+        ;;
     esac
 
-} 
-# end function dispatcher 
+}
+# end function dispatcher
 
 ###############################################################################
-function dbackL_usage 
+function dbackL_usage
 # (<no arguments>)
 {
     cat <<EOF
 Backup and restore methods for Linux, based on rsync.
 
-Usage: 
+Usage:
 dbackL [-no-acls] [-no-xattrs] [-compatible] command arg arg arg ...
 command is one of:
     help version userguide backup restore trash empty copy
 
-Type 
+Type
     dbackL [command] help
 for help with individual commands.
 
@@ -190,10 +190,10 @@ Use the above options only if necessary.
 
 EOF
 }
-# End function dbackL_usage 
+# End function dbackL_usage
 
 ###############################################################################
-function dbackL_version 
+function dbackL_version
 # (<no arguments>)
 {
     # Take care of help or improper usage
@@ -202,16 +202,16 @@ function dbackL_version
         ;;
     1)
         dbackL_version_usage
-	if [ "$1" == "help" ]
-	then
-	    exit 0
-	else
-	    exit 1
-	fi
+        if [ "$1" == "help" ]
+        then
+            exit 0
+        else
+            exit 1
+        fi
         ;;
     *)
-    	dbackL_version_usage
-	exit 1
+        dbackL_version_usage
+        exit 1
         ;;
     esac
 
@@ -219,11 +219,11 @@ function dbackL_version
     echo 'configured to use this verion of rsync:'
     "$RSYNC" --version
 }
-# End function dbackL_version 
+# End function dbackL_version
 
 ###############################################################################
 function dbackL_version_usage
-# ([help]) 
+# ([help])
 {
     cat <<EOF
 Discloses version information for dbackL and rsync.
@@ -252,25 +252,25 @@ function dbackL_backup
     # Take care of help or improper usage
     case $# in
     0)
-    	dbackL_backup_usage
-	exit 1
+        dbackL_backup_usage
+        exit 1
         ;;
     1)
         dbackL_backup_usage
-	if [ "$1" == "help" ]
-	then
-	    exit 0
-	else
-	    exit 1
-	fi
+        if [ "$1" == "help" ]
+        then
+            exit 0
+        else
+            exit 1
+        fi
         ;;
     2)
-	source="$1"
-	destination="$2"
+        source="$1"
+        destination="$2"
         ;;
     *)
-    	dbackL_backup_usage
-	exit 1
+        dbackL_backup_usage
+        exit 1
         ;;
     esac
 
@@ -284,18 +284,18 @@ function dbackL_backup
     # All work takes place within the destination
     if [ ! -e "${destination}" ]
     then
-	echo "ERROR: Destination \"${destination}\" does not exist"
-	exit 1
+        echo "ERROR: Destination \"${destination}\" does not exist"
+        exit 1
     fi
     cd "${destination}"
     if [ \( ! -e "${latestlink}" \) -a \( ! -e "${inprogresslink}" \) ]
     then
-	count=$(ls -a | wc -l)
-	if [ $count -gt 2 ]
-	then
-	    echo "ERROR: Destination \"${destination}\" is corrupted"
-	    exit 1
-	fi
+        count=$(ls -a | wc -l)
+        if [ $count -gt 2 ]
+        then
+            echo "ERROR: Destination \"${destination}\" is corrupted"
+            exit 1
+        fi
     fi
     trapfile="${PWD}/${trapfile_base}"
 
@@ -304,144 +304,144 @@ function dbackL_backup
 
     if [ -e "${inprogresslink}" ]
     then
-    	# Recovery backup
+        # Recovery backup
 
-	middle="$(readlink "${inprogresslink}")"
-	if [ $? -ne 0 ]
-	then
-	    inprogresslink_fail "${destination}" "${inprogresslink}"
-	fi
-	new="${middle/.inProgress/}"
-	datestring="$(basename "${new}")"
-	logfile="${new}.log"
+        middle="$(readlink "${inprogresslink}")"
+        if [ $? -ne 0 ]
+        then
+            inprogresslink_fail "${destination}" "${inprogresslink}"
+        fi
+        new="${middle/.inProgress/}"
+        datestring="$(basename "${new}")"
+        logfile="${new}.log"
         logfile=$(realpath "$logfile")
-	touch "${logfile}" || exit 1
-	chmod a+r "${logfile}" || exit 1
+        touch "${logfile}" || exit 1
+        chmod a+r "${logfile}" || exit 1
 
-	# Start building argument array
-	array=("${source}" "${middle}" "--stats")
+        # Start building argument array
+        array=("${source}" "${middle}" "--stats")
 
-	if [ -e "${latestlink}" ]
-	then
-	    linkdest="$(readlink "${latestlink}")"
-	    link_test "${latestlink}"
-	    if [ $? -ne 0 ]
-	    then
-		latestlink_fail "${destination}" "${destination}/${latestlink}" 
-	    fi
-	    array=("${array[@]}" "--link-dest=../${linkdest}")
-	fi
+        if [ -e "${latestlink}" ]
+        then
+            linkdest="$(readlink "${latestlink}")"
+            link_test "${latestlink}"
+            if [ $? -ne 0 ]
+            then
+                latestlink_fail "${destination}" "${destination}/${latestlink}"
+            fi
+            array=("${array[@]}" "--link-dest=../${linkdest}")
+        fi
 
-	lock_on . $$
-        echo_heading "Resuming backup to ${destination}/${middle}" 
+        lock_on . $$
+        echo_heading "Resuming backup to ${destination}/${middle}"
 
-	dbackL_rsync_backup "${array[@]}"
+        dbackL_rsync_backup "${array[@]}"
 
-	if [ -e "${trapfile}" ]
-	then
-	    lock_off
-	    echo_date "Backup not complete"
-	    date_exit 99
-	fi
+        if [ -e "${trapfile}" ]
+        then
+            lock_off
+            echo_date "Backup not complete"
+            date_exit 99
+        fi
 
-	mv "${middle}" "${new}" || date_exit 1
-	rm "${inprogresslink}" || date_exit 1
+        mv "${middle}" "${new}" || date_exit 1
+        rm "${inprogresslink}" || date_exit 1
 
-	rm -f Latest || date_exit 1
-	ln -s "${new}" Latest || date_exit 1
+        rm -f Latest || date_exit 1
+        ln -s "${new}" Latest || date_exit 1
 
-	echo_log ""
-	echo_date \
-	    "Created backup set \"${new}\" in destination \"${destination}\""
+        echo_log ""
+        echo_date \
+            "Created backup set \"${new}\" in destination \"${destination}\""
 
-	lock_off
+        lock_off
 
     elif [ -e "${latestlink}" ]
     then
-    	# Normal, incremental backup
+        # Normal, incremental backup
 
-	datestring="$(date '+%Y-%m-%d-%H%M%S')"
-	middle="${datestring}.inProgress"
-	new="${datestring}"
-	logfile="${new}.log"
+        datestring="$(date '+%Y-%m-%d-%H%M%S')"
+        middle="${datestring}.inProgress"
+        new="${datestring}"
+        logfile="${new}.log"
         logfile=$(realpath "$logfile")
-	touch "${logfile}" || exit 1
-	chmod a+r "${logfile}" || exit 1
+        touch "${logfile}" || exit 1
+        chmod a+r "${logfile}" || exit 1
 
-	lock_on . $$
+        lock_on . $$
 
-	echo_heading "Begin delta rsync to ${destination}/${middle}" 
-	mkdir "${middle}" || date_exit 1
-	link_test "${latestlink}"
-	if [ $? -ne 0 ]
-	then
-	    lock_off
-	    latestlink_fail "${destination}" "${destination}/${latestlink}" 
-	fi
-	linkdest="$(readlink "${latestlink}")"
-	ln -s "${middle}" "${inprogresslink}" || exit 1
-	dbackL_rsync_backup \
-	    "${source}" "$middle" \
-	    --stats \
-	    --link-dest="../${linkdest}"
+        echo_heading "Begin delta rsync to ${destination}/${middle}"
+        mkdir "${middle}" || date_exit 1
+        link_test "${latestlink}"
+        if [ $? -ne 0 ]
+        then
+            lock_off
+            latestlink_fail "${destination}" "${destination}/${latestlink}"
+        fi
+        linkdest="$(readlink "${latestlink}")"
+        ln -s "${middle}" "${inprogresslink}" || exit 1
+        dbackL_rsync_backup \
+            "${source}" "$middle" \
+            --stats \
+            --link-dest="../${linkdest}"
 
-	if [ -e "${trapfile}" ]
-	then
-	    lock_off
-	    echo_date "Backup not complete"
-	    date_exit 99
-	fi
+        if [ -e "${trapfile}" ]
+        then
+            lock_off
+            echo_date "Backup not complete"
+            date_exit 99
+        fi
 
-	mv "$middle" "${new}" || date_exit 1
-	rm "${latestlink}" || date_exit 1
+        mv "$middle" "${new}" || date_exit 1
+        rm "${latestlink}" || date_exit 1
 
-	rm -f Latest || date_exit 1
-	ln -s "${datestring}" Latest || date_exit 1
-	rm "${inprogresslink}" || date_exit 1
+        rm -f Latest || date_exit 1
+        ln -s "${datestring}" Latest || date_exit 1
+        rm "${inprogresslink}" || date_exit 1
 
-	echo_log ""
-	echo_date \
-	    "Created backup set \"${new}\" in destination \"${destination}\""
+        echo_log ""
+        echo_date \
+            "Created backup set \"${new}\" in destination \"${destination}\""
 
-	lock_off
+        lock_off
 
     else
-    	# Initial backup, no previous deltas.
+        # Initial backup, no previous deltas.
 
-	datestring="$(date '+%Y-%m-%d-%H%M%S')"
-	middle="${datestring}.inProgress"
-	new="${datestring}"
-	mkdir -p "${middle}" || date_exit 1
-	logfile="${new}.log"
+        datestring="$(date '+%Y-%m-%d-%H%M%S')"
+        middle="${datestring}.inProgress"
+        new="${datestring}"
+        mkdir -p "${middle}" || date_exit 1
+        logfile="${new}.log"
         logfile=$(realpath "$logfile")
-	touch "${logfile}" || exit 1
-	chmod a+r "${logfile}" || exit 1
-	ln -s "${datestring}.inProgress" "${inprogresslink}" || exit 1
+        touch "${logfile}" || exit 1
+        chmod a+r "${logfile}" || exit 1
+        ln -s "${datestring}.inProgress" "${inprogresslink}" || exit 1
 
-	lock_on . $$
+        lock_on . $$
 
-	echo_heading "Begin initial rsync to ${destination}/${middle}" 
-	dbackL_rsync_backup \
-	    "${source}" "${middle}" \
-	    --stats
+        echo_heading "Begin initial rsync to ${destination}/${middle}"
+        dbackL_rsync_backup \
+            "${source}" "${middle}" \
+            --stats
 
-	if [ -e "${trapfile}" ]
-	then
-	    lock_off
-	    echo_date "Backup not complete"
-	    date_exit 99
-	fi
+        if [ -e "${trapfile}" ]
+        then
+            lock_off
+            echo_date "Backup not complete"
+            date_exit 99
+        fi
 
-	mv "${middle}" "${new}" || date_exit 1
+        mv "${middle}" "${new}" || date_exit 1
 
-	ln -s "${datestring}" Latest
-	rm "${inprogresslink}" || date_exit 1
+        ln -s "${datestring}" Latest
+        rm "${inprogresslink}" || date_exit 1
 
-	echo_log ""
-	echo_date \
-	    "Created backup set \"${new}\" in destination \"${destination}\""
+        echo_log ""
+        echo_date \
+            "Created backup set \"${new}\" in destination \"${destination}\""
 
-	lock_off
+        lock_off
     fi
 
     echo_heading "End dbackL"
@@ -487,23 +487,23 @@ function dbackL_restore
     # Take care of help or improper usage
     case $# in
     0)
-    	dbackL_restore_usage
-	exit 1
+        dbackL_restore_usage
+        exit 1
         ;;
     1)
         dbackL_restore_usage
-	if [ "$1" == "help" ]
-	then
-	    exit 0
-	else
-	    exit 1
-	fi
+        if [ "$1" == "help" ]
+        then
+            exit 0
+        else
+            exit 1
+        fi
         ;;
     2)
         ;;
     *)
-    	dbackL_restore_usage
-	exit 1
+        dbackL_restore_usage
+        exit 1
         ;;
     esac
 
@@ -516,8 +516,8 @@ function dbackL_restore
     # Sanity check
     if [ ! -e "${source}" ]
     then
-	echo "ERROR: \"${source}\" does not exist"
-	exit 1
+        echo "ERROR: \"${source}\" does not exist"
+        exit 1
     fi
 
     # Get true location of backup source. Needed to write logfile and trapfile
@@ -533,16 +533,16 @@ function dbackL_restore
     chmod a+r "${logfile}" || exit 1
     trapfile="${source_dir}/${trapfile_base}"
 
-    echo_heading "Begin restore from ${source} to ${destination}" 
+    echo_heading "Begin restore from ${source} to ${destination}"
     cd "$source" || exit 1
     dbackL_rsync_restore \
-	. "${destination}" \
-        --stats 
+        . "${destination}" \
+        --stats
 
     if [ -e "${trapfile}" ]
     then
-	echo_date "Restore not complete"
-	date_exit 99
+        echo_date "Restore not complete"
+        date_exit 99
     fi
 
     echo_heading "End dbackL"
@@ -560,10 +560,10 @@ Performs a full restore of a Linux directory
 Usage: dbackL <options> restore sourcedir destdir
     sourcedir is the root of the backup media. It will have the form
         <whatever>/<date>
-	No trailing slashes please!
+        No trailing slashes please!
     destdir is the volume to restore to. To restore to a remote host, use
-	rsync(1) syntax:
-	    user@host:/dir/...
+        rsync(1) syntax:
+            user@host:/dir/...
 
 An explanation of <options> can be obtained from the following command:
     dbackL help
@@ -571,7 +571,7 @@ An explanation of <options> can be obtained from the following command:
 Example:
     sudo dbackL restore \\
         'my_usb_drive/snapshots/2013-01-17-233228' \\
-	'root@machine_to_restore:/'
+        'root@machine_to_restore:/'
 
 EOF
 }
@@ -590,79 +590,79 @@ function dbackL_trash
     # Take care of help or improper usage
     case $# in
     0)
-    	dbackL_trash_usage
-	exit 1
+        dbackL_trash_usage
+        exit 1
         ;;
     1)
-	if [ "$1" == "help" ]
-	then
-	    dbackL_trash_usage
-	    exit 0
-	fi
+        if [ "$1" == "help" ]
+        then
+            dbackL_trash_usage
+            exit 0
+        fi
         ;;
     esac
 
     # Need privilege to really do work
     su_check
 
-    for dir in "$@" 
+    for dir in "$@"
     do
         destination="$(dirname "$dir")"
-	if [ "x${destination}" == "x" ]
-	then
-	    destination="."
-	fi
+        if [ "x${destination}" == "x" ]
+        then
+            destination="."
+        fi
 
-	# Don't remove Latest backup
-	latestlink="${destination}/Latest"
-	linkdest="${destination}/$(readlink "${latestlink}")"
-	if [ "$linkdest" == "$(basename "$dir")" ]
-	then
-	    echo "WARNING: input"
-	    echo "    \"${dir}\""
-	    echo "    is Latest in its series. Skipped."
-	    lock_off
-	    continue
-	fi
+        # Don't remove Latest backup
+        latestlink="${destination}/Latest"
+        linkdest="${destination}/$(readlink "${latestlink}")"
+        if [ "$linkdest" == "$(basename "$dir")" ]
+        then
+            echo "WARNING: input"
+            echo "    \"${dir}\""
+            echo "    is Latest in its series. Skipped."
+            lock_off
+            continue
+        fi
 
-	lock_on "$destination" $$
+        lock_on "$destination" $$
 
-	# Create the ".Trash" directory if necessary
-	trash="${destination}/.Trash"
-	if [ ! -e "$trash" ]
-	then
-	    echo "Creating trashcan "
-	    echo "    \"${trash}\""
-	    mkdir "$trash" || exit 1
-	fi
+        # Create the ".Trash" directory if necessary
+        trash="${destination}/.Trash"
+        if [ ! -e "$trash" ]
+        then
+            echo "Creating trashcan "
+            echo "    \"${trash}\""
+            mkdir "$trash" || exit 1
+        fi
 
-	# Finally, do the deed.
-	mv "$dir" "$trash"
-	if [ $? -ne 0 ]
-	then
-	    echo "WARNING: input"
-	    echo "    \"${dir}\" skipped."
-	    lock_off
-	    continue
-	fi
-	if [ -e "${dir}.log" ]
-	then
-	    mv "${dir}.log" "$trash"
-	fi
+        # Finally, do the deed.
+        mv "$dir" "$trash"
+        if [ $? -ne 0 ]
+        then
+            echo "WARNING: input"
+            echo "    \"${dir}\" skipped."
+            lock_off
+            continue
+        fi
+        if [ -e "${dir}.log" ]
+        then
+            mv "${dir}.log" "$trash"
+        fi
 
-	lock_off
+        lock_off
     done
 }
 # End function dbackL_trash
 
 ###############################################################################
 function dbackL_trash_usage
-# ([help]) 
+# ([help])
 {
     cat <<EOF
-Sends one or more backup sets to a trashcan. 
+Sends one or more backup sets to a trashcan.
 
-Usage: 
+Usage:
     dbackL trash dir dir dir ...
     dbackL trash [help]
 
@@ -676,7 +676,7 @@ EOF
 
 ###############################################################################
 function dbackL_empty
-# (destination) or (help) 
+# (destination) or (help)
 {
     local dir
     local destination
@@ -685,15 +685,15 @@ function dbackL_empty
     # Take care of help or improper usage
     case $# in
     1)
-	if [ "$1" == "help" ]
-	then
-	    dbackL_empty_usage
-	    exit 0
-	fi
+        if [ "$1" == "help" ]
+        then
+            dbackL_empty_usage
+            exit 0
+        fi
         ;;
     *)
-    	dbackL_empty_usage
-	exit 1
+        dbackL_empty_usage
+        exit 1
         ;;
     esac
 
@@ -703,7 +703,7 @@ function dbackL_empty
     destination="${1}"
     if [ "x${destination}" == "x" ]
     then
-	destination="."
+        destination="."
     fi
     cd "${destination}" || exit 1
     lock_on . $$
@@ -716,10 +716,10 @@ function dbackL_empty
     cd "$trash" || exit 1
     for file in *
     do
-	if [ "${file}" == '*' ]
-	then
-	    continue
-	fi
+        if [ "${file}" == '*' ]
+        then
+            continue
+        fi
         echo rm -rf "$file"
         trap '(exit 1)' 2
         rm -rf "$file"
@@ -730,12 +730,12 @@ function dbackL_empty
 
 ###############################################################################
 function dbackL_empty_usage
-# ([help]) 
+# ([help])
 {
     cat <<EOF
 Empties a dbackL trashcan.
 
-Usage: 
+Usage:
     dbackL empty destination
     dbackL empty [help]
 
@@ -751,7 +751,7 @@ EOF
 
 ###############################################################################
 function dbackL_copy
-# (<arbitrary rsync arguments>) or (help) 
+# (<arbitrary rsync arguments>) or (help)
 {
 
     local -a array
@@ -765,17 +765,17 @@ function dbackL_copy
     case $# in
     0)
         dbackL_copy_usage
-	exit 1
-	;;
+        exit 1
+        ;;
     1)
-	if [ "$1" == "help" ]
-	then
-	    dbackL_copy_usage
-	    exit 0
-	else
-	    dbackL_copy_usage
-	    exit 1
-	fi
+        if [ "$1" == "help" ]
+        then
+            dbackL_copy_usage
+            exit 0
+        else
+            dbackL_copy_usage
+            exit 1
+        fi
         ;;
     esac
 
@@ -785,8 +785,8 @@ function dbackL_copy
     while [ $index -lt $limit ]
     do
         array[$index]="$1"
-	shift
-	let index++
+        shift
+        let index++
     done
     psource="$1"
     shift
@@ -795,8 +795,8 @@ function dbackL_copy
     # Sanity check
     if [ ! -e "${pdestination}" ]
     then
-	echo "ERROR: \"${pdestination}\" does not exist"
-	exit 1
+        echo "ERROR: \"${pdestination}\" does not exist"
+        exit 1
     fi
 
     trapfile="${pdestination}/${trapfile_base}"
@@ -806,22 +806,22 @@ function dbackL_copy
 
     if [ -e "${trapfile}" ]
     then
-	lock_off
-	echo_date "Copy not complete"
-	date_exit 99
+        lock_off
+        echo_date "Copy not complete"
+        date_exit 99
     fi
 }
 # End function dbackL_copy
 
 ###############################################################################
 function dbackL_copy_usage
-# ([help]) 
+# ([help])
 {
     cat <<EOF
-Calls through to rsync, using options that preserve file attributes, 
-and applying recursion. 
+Calls through to rsync, using options that preserve file attributes,
+and applying recursion.
 
-Usage: 
+Usage:
     dbackL <options> copy rsync_arg1 rsync_arg2 ...
     dbackL copy [help]
 
@@ -864,21 +864,26 @@ function dbackL_rsync_backup
     if [ $? -eq 0 ]
     then
         echo "ERROR: cannot work with rsync daemon (:: notation)"
-	exit 1
+        exit 1
     fi
     echo "$source" | grep -l ':'
     if [ $? -eq 0 ]
     then
-	bare_source="${source##*:}"
-	bare_client="${source%%:*}:"
+        bare_source="${source##*:}"
+        bare_client="${source%%:*}:"
     else
-	bare_source="${source}"
-	bare_client=""
+        bare_source="${source}"
+        bare_client=""
     fi
     if [ "x${bare_source}" == "x" ]
     then
-    	echo "ERROR: cannot handle empty path in backup source \"${source}\""
-	exit 1
+        echo "ERROR: cannot handle empty path in backup source \"${source}\""
+        exit 1
+    fi
+    if [[ "${bare_source:0:1}" == '.' ]]
+    then
+        echo "ERROR: cannot handle relative path in backup source \"${source}\""
+        exit 1
     fi
 
     # Programming note: switching to symbolic links is probably unnecessary
@@ -891,7 +896,7 @@ function dbackL_rsync_backup
 
     # Begin argument array
     array=(no --delete --delete-after --delete-excluded --ignore-errors \
-	--exclude-from="$rsync_excludes" --force "$@")
+        --exclude-from="$rsync_excludes" --force "$@")
 
     # Handle remote versus local rsync
     source=$(realpath "$source")
@@ -899,11 +904,11 @@ function dbackL_rsync_backup
     oldloc="$PWD"
     if [ "x${bare_client}" == "x" ]
     then
-    	array=("." "${linkto}" "${array[@]}")
+        array=("." "${linkto}" "${array[@]}")
         cd "$bare_source" || exit 1
     else
-    	array=("${bare_client}." "${linkto}" "${array[@]}" \
-	    --rsync-path="cd \"${bare_source}\" ; sudo rsync")
+        array=("${bare_client}." "${linkto}" "${array[@]}" \
+            --rsync-path="cd \"${bare_source}\" ; sudo rsync")
     fi
 
     $RSYNC_SUB "${array[@]}" 2>&1 | tee -a "${logfile}"
@@ -932,21 +937,21 @@ function dbackL_rsync_restore
     if [ $? -eq 0 ]
     then
         echo "ERROR: cannot work with rsync daemon (:: notation)"
-	exit 1
+        exit 1
     fi
     echo "$destination" | grep -l ':'
     if [ $? -eq 0 ]
     then
         bare_destination="${destination##:}"
-	bare_client="${source%%:*}:"
+        bare_client="${source%%:*}:"
     else
         bare_destination="${source}"
-	bare_client=""
+        bare_client=""
     fi
     if [ "x${bare_destination}" == "x" ]
     then
         echo "ERROR: cannot handle empty path in restore destination \"${destination}\""
-	exit 1
+        exit 1
     fi
 
     # Programming note: switching to symbolic links is probably unnecessary
@@ -959,8 +964,8 @@ function dbackL_rsync_restore
 
     # Begin argument array
     array=("yes" --delete --delete-after --force --ignore-errors \
-	--exclude-from="$rsync_excludes" --exclude-from="$restore_excludes" \
-	"$@")
+        --exclude-from="$rsync_excludes" --exclude-from="$restore_excludes" \
+        "$@")
 
     # Handle remote versus local rsync
     if [ "x${bare_client}" == "x" ]
@@ -968,12 +973,12 @@ function dbackL_rsync_restore
         array=("${linkfrom}" "${destination}" "${array[@]}")
     else
         array=("${linkfrom}" "${destination}" "${array[@]}" \
-	    --rsync-path="sudo rsync")
+            --rsync-path="sudo rsync")
     fi
 
     # Programming note: when the {source} is a dbackL backup, the
-    # --exclude-from used here has no practical effect. However, if the 
-    # {source} is (for example) some bootable volume, then these exclusions 
+    # --exclude-from used here has no practical effect. However, if the
+    # {source} is (for example) some bootable volume, then these exclusions
     # improve reliability.
     $RSYNC_SUB "${array[@]}" 2>&1 | tee -a "${logfile}"
 }
@@ -1002,15 +1007,15 @@ function v3_0_9_rsync_sub
     array=( -z -rlptgo --numeric-ids -S -H -D)
     if [ "$acls" == "yes" ]
     then
-	array=("${array[@]}" -A)
+        array=("${array[@]}" -A)
     fi
     if [ "$xattrs" == "yes" ]
     then
-	array=("${array[@]}" --xattrs)
+        array=("${array[@]}" --xattrs)
     fi
     if [ "$compatible" == "no" ]
     then
-	array=("${array[@]}" -E --no-inc-recursive --super)
+        array=("${array[@]}" -E --no-inc-recursive --super)
     fi
     if [ "$multifilesystems" == "no" ]
     then
@@ -1036,24 +1041,24 @@ function v3_0_9_rsync_sub
     status=$?
     if [ "$strict" == "yes" ]
     then
-	if [ $status -ne 0 ]
-	then
-	    echo_log " "
-	    echo_log "ERROR: rsync returned status $status"
-	    echo_log "       Execute dbackL again, exactly as before."
-	    exit $status
-	fi
+        if [ $status -ne 0 ]
+        then
+            echo_log " "
+            echo_log "ERROR: rsync returned status $status"
+            echo_log "       Execute dbackL again, exactly as before."
+            exit $status
+        fi
     elif [ "$strict" == "no" ]
     then
-	if [ \( $status -ne 0 \) -a \( $status -ne 23 \) -a \
-	     \( $status -ne 24 \) ]
-	then
-	    exit $status
-	fi
+        if [ \( $status -ne 0 \) -a \( $status -ne 23 \) -a \
+             \( $status -ne 24 \) ]
+        then
+            exit $status
+        fi
     else
         echo_log " "
-	echo_log "ERROR: programming error, strict = ${strict}"
-	exit 1
+        echo_log "ERROR: programming error, strict = ${strict}"
+        exit 1
     fi
 
     rm -f "${trapfile}"
@@ -1071,7 +1076,7 @@ function lock_on
     if [ x"$lockfile" != "x" ]
     then
         echo "ERROR: programming error in dbackL script, locking."
-	exit 1
+        exit 1
     fi
 
     oldloc="$PWD"
@@ -1079,7 +1084,7 @@ function lock_on
     if [ $? -ne 0 ]
     then
         echo "ERROR: programming error in dbackL script, locking."
-	exit 1
+        exit 1
     fi
     destination="$PWD"
     cd "$oldloc" || exit 1
@@ -1089,14 +1094,14 @@ function lock_on
 
     if [ -e "$lockfile" ]
     then
-	echo "dbackL: ${PWD}"
+        echo "dbackL: ${PWD}"
         echo "The area located at \"$1\""
-	echo "may be in use by another dbackL process."
-	echo "If the following process is still running, wait for it to complete:"
-	cat "$lockfile"
-	echo "Otherwise, delete the following lock file and run dbackL again:"
-	echo "    ${lockfile}"
-	exit 1
+        echo "may be in use by another dbackL process."
+        echo "If the following process is still running, wait for it to complete:"
+        cat "$lockfile"
+        echo "Otherwise, delete the following lock file and run dbackL again:"
+        echo "    ${lockfile}"
+        exit 1
     fi
 
     echo "    Machine \"$(hostname -s)\", process $$" > "$lockfile" | exit 1
@@ -1110,12 +1115,12 @@ function lock_off
     if [ x"$lockfile" == "x" ]
     then
         echo "ERROR: programming error in dbackL script, unlocking."
-	exit 1
+        exit 1
     fi
     if [ ! -e "$lockfile" ]
     then
         echo "ERROR: programming error in dbackL script, unlocking."
-	exit 1
+        exit 1
     fi
 
     rm "$lockfile" || exit 1
@@ -1139,8 +1144,8 @@ function latestlink_fail
 # (arena full_link_location)
 {
     cat <<EOF
-ERROR: the file 
-    "$2" 
+ERROR: the file
+    "$2"
 exists, but it does not point to a useful location. Something is wrong
 with the backup volume. There are two possible remedies:
 
@@ -1148,10 +1153,10 @@ with the backup volume. There are two possible remedies:
    to the volume will be a "full" backup. You will need root privilege
    (sudo ...).
 
-2. You can delete the bad file and make a new, valid one. Determine which 
+2. You can delete the bad file and make a new, valid one. Determine which
    "dated" directory is the latest backup, and then link to it. For example,
-   if your latest backup in 
-       "$1" 
+   if your latest backup in
+       "$1"
     is "2011-01-17-233228", then you could do:
        cd "$1"
        sudo ln -s "2011-01-17-233228" LATEST
@@ -1168,8 +1173,8 @@ function inprogresslink_fail
 # (arena full_link_location)
 {
     cat <<EOF
-ERROR: the file 
-    "$2" 
+ERROR: the file
+    "$2"
 exists, but it does not point to a useful location. Something is wrong
 with the backup volume. The suggested remedy is to simply delete the bad
 file. If you do, then you should also delete any directories named
@@ -1234,9 +1239,9 @@ function date_exit
     echo_log "$(date '+%Y-%m-%d %H:%M')" "exit with status" "$@"
     if [ "x${logfile}" != "x" ]
     then
-	echo " "
-	echo "These results written to log file "
-	echo "    \"${logfile}\""
+        echo " "
+        echo "These results written to log file "
+        echo "    \"${logfile}\""
     fi
     exit "$@"
 }
@@ -1249,7 +1254,7 @@ function echo_log
     echo "$@"
     if [ "x${logfile}" != "x" ]
     then
-	echo "$@" >> "${logfile}"
+        echo "$@" >> "${logfile}"
     fi
 }
 # End function echo_log
@@ -1261,14 +1266,14 @@ function su_check
 
     if [ "$(id -u)" != "0" ]
     then
-	echo "$(basename "$0"): execute as super user"
-	exit 1
+        echo "$(basename "$0"): execute as super user"
+        exit 1
     fi
 }
 # End function su_check
 
 ###############################################################################
-function dbackL_userguide 
+function dbackL_userguide
 # (<no arguments>)
 {
     # Take care of help or improper usage
@@ -1277,16 +1282,16 @@ function dbackL_userguide
         ;;
     1)
         dbackL_userguide_usage
-	if [ "$1" == "help" ]
-	then
-	    exit 0
-	else
-	    exit 1
-	fi
+        if [ "$1" == "help" ]
+        then
+            exit 0
+        else
+            exit 1
+        fi
         ;;
     *)
-    	dbackL_userguide_usage
-	exit 1
+        dbackL_userguide_usage
+        exit 1
         ;;
     esac
 
@@ -1303,11 +1308,11 @@ and its file systems.
 The data to be backed up is specified by a base directory, which may be
 located on a different machine than the one on which dbackL executes.
 The backup media is specified as another directory, which must be on the
-same machine on which dbackL executes.  
+same machine on which dbackL executes. 
 
 DbackL is a bash(1) script that is a thin layer over rsync(1). It uses
 the --link-dest option of rsync to provide multiple backups with very
-high disk space efficiency. DbackL has only been tested with Linux and 
+high disk space efficiency. DbackL has only been tested with Linux and
 NetBSD at this time.
 
 Should I Use It?
@@ -1342,7 +1347,7 @@ This comprises the installation of dbackL.
 How It Works
 ------------
 DbackL creates and updated a backup set. A backup set is a disk directory
-containing backup data. For example, suppose that you invoke dbackL 
+containing backup data. For example, suppose that you invoke dbackL
 for the first time as
     sudo dbackL backup 'root@remhost:/' '/my_usb_drive/snapshots/remhost'
 DbackL will commence to backup the root directory on machine remhost.
@@ -1386,7 +1391,7 @@ When dbackL begins to back up, it places the backup data into a
 special directory of the form <date>.inProgress. In the above
 examples, the individual backup 2011-01-17-233228 began life as the
 special directory
-    2011-01-17-233228.inProgress. 
+    2011-01-17-233228.inProgress.
 
  - In-Progress Link
 When dbackL begins to back up, it also creates a zero length file
@@ -1395,9 +1400,9 @@ in-progess backup, described immediately above.
 
 Backup Operation
 ----------------
-The dbackL backup command is suited for copying an entire disk 
-partition.  This is typically the active root volume of your Linux 
-machine. 
+The dbackL backup command is suited for copying an entire disk
+partition.  This is typically the active root volume of your Linux
+machine.
 
 Restore From Backup
 -------------------
@@ -1453,7 +1458,7 @@ you will have to delete older backups. The dbackL commands
     trash
     empty
 are dedicated to this purpose. If you prefer, you may simply delete
-individual backups yourself. 
+individual backups yourself.
 
 If a dbackL backup task is interrupted, it will leave behind "in
 progress" elements in the backup set. These are described above. There
@@ -1491,13 +1496,13 @@ another function RSYNC_SUB. You can modify the command line options
 here.
 
 Should you wish to change rsync version, you do it in two parts:
-first, you specify the location of rsync by changing the definiton of 
-	RSYNC
+first, you specify the location of rsync by changing the definiton of
+        RSYNC
 near the top of the dbackL script. This may be sufficient.
 
 If your new rsync version is sufficiently different from version 3.0.9, then
 you may have to change the way it is invoked. There is a single bash function
-	v3_0_9_rsync_sub
+        v3_0_9_rsync_sub
 that you can edit, in this case.
 
 v3_0_9_rsync_sub is not referenced directly. Instead, dbackL calls a
@@ -1531,11 +1536,11 @@ This is how I use dbackL. TBD.
 
 EOF
 }
-# End function dbackL_userguide 
+# End function dbackL_userguide
 
 ###############################################################################
 function dbackL_userguide_usage
-# ([help]) 
+# ([help])
 {
     cat <<EOF
 Usage: dbackL userguide [help]
