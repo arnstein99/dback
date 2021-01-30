@@ -26,7 +26,7 @@ RSYNC_SUB="v3_0_9_rsync_sub"
 # Other Global Variables
 # ----------------------
 
-dbackL_Version="dbackL 1.22"
+dbackL_Version="dbackL 1.23"
 logfile=""
 lockfile=""
 acls="yes"
@@ -36,6 +36,8 @@ multifilesystems="no"
 checksum="no"
 trapfile_base=".dbackL.inprogress"
 trapfile=""
+
+trap cleanup EXIT
 
 # These exclusions apply to all backups
 cat <<EOF >> "$rsync_excludes" || exit 1
@@ -790,8 +792,24 @@ function dbackL_copy
     shift
     pdestination="$1"
 
+    # Sanity check
+    if [ ! -e "${pdestination}" ]
+    then
+	echo "ERROR: \"${pdestination}\" does not exist"
+	exit 1
+    fi
+
+    trapfile="${pdestination}/${trapfile_base}"
+
     # Call through to appropriate rsync
     $RSYNC_SUB "$psource" "$pdestination" "no" "${array[@]}"
+
+    if [ -e "${trapfile}" ]
+    then
+	lock_off
+	echo_date "Copy not complete"
+	date_exit 99
+    fi
 }
 # End function dbackL_copy
 
@@ -1527,6 +1545,15 @@ Prints out a user guide. Note: this will be lengthy.
 EOF
 }
 # End function dbackL_userguide_usage
+
+###############################################################################
+
+function cleanup
+{
+    # Final clean up
+    rm -f "$rsync_excludes"
+    rm -f "$restore_excludes"
+}
 
 ###############################################################################
 
