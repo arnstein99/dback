@@ -1307,7 +1307,7 @@ and its file systems.
 The data to be backed up is specified by a base directory, which may be
 located on a different machine than the one on which dbackL executes.
 The backup media is specified as another directory, which must be on the
-same machine on which dbackL executes. 
+same machine on which dbackL executes.
 
 DbackL is a bash(1) script that is a thin layer over rsync(1). It uses
 the --link-dest option of rsync to provide multiple backups with very
